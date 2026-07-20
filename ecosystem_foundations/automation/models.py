@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from datetime import timedelta
 
 
+from .registry import ACTION_REGISTRY
 from base.models import ActiveMixin, BaseRunModel, BaseUuidPrimaryKeyModel, TimeAuditableMixin
 from watchdog.models import SignalType
 
@@ -205,7 +206,7 @@ class AutomationAction(ActiveMixin, TimeAuditableMixin, BaseUuidPrimaryKeyModel)
         if self.is_active and not self.trigger:
             raise ValidationError("Active actions must be attached to a trigger")
 
-        # To Do: Make work with the ActionRunner class in the registry.py file in this app
+        # To Do: Make work with the ActionEngine class in the registry.py file in this app
         action_def = ACTION_REGISTRY.get(self.type)
         if not action_def:
             raise ValidationError(f"Unknown action type: {self.type}")

@@ -10,7 +10,7 @@ from .models import (
     TriggerTypes,
 )
 
-from .registry import ActionRunner
+from .runner import ActionEngine
 
 from utils.queryAstHandler import QueryAstHandler
 from utils.boolAstHandler import BooleanAstHandler
@@ -126,7 +126,7 @@ def run_trigger(self, trigger_id, signal_id=None):
                 continue
 
             try:
-                ActionRunner.run(action, results, context)
+                ActionEngine.run(action, results, context)
 
                 AutomationActionRun.objects.create(
                     run=run,

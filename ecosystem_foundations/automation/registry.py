@@ -1,93 +1,38 @@
-from typing import Callable, Any, Dict, Optional
-import logging
+from dataclasses import dataclass
+from typing import Callable
+from base.registry import SingleRegistry
 
-logger = logging.getLogger(__name__)
+@dataclass
+class ActionDefinition:
+    handler: Callable
+    schema: dict
 
+    def validate(self, config):
+        required = self.schema.get("required", [])
 
-class ActionRunner:
-    """
-    Registry and executor for automation actions.
-    """
+        for field in required:
+            if field not in config:
+                raise ValueError(
+                    f"Missing required config field '{field}'"
+                )
 
-    REGISTRY: Dict[str, dict] = {}
+class ActionRegistry(SingleRegistry):
+    
+    def register(self, name, *, schema=None, replace=False):
 
-    # -----------------------------
-    # REGISTRATION
-    # -----------------------------
-    @classmethod
-    def register(cls, name: str, *, schema: Optional[dict] = None):
-        """
-        Decorator to register an action handler.
+        def decorator(fn):
+            definition = ActionDefinition(
+                handler=fn,
+                schema=schema or {}
+            )
 
-        schema example:
-        {
-            "required": ["email", "subject"],
-            "optional": ["body"]
-        }
-        """
-
-        def decorator(fn: Callable[[Any, dict, dict], None]):
-            if not callable(fn):
-                raise TypeError(f"Handler must be callable, got {type(fn)}")
-
-            if name in cls.REGISTRY:
-                raise ValueError(f"Action '{name}' is already registered")
-
-            cls.REGISTRY[name] = {
-                "handler": fn,
-                "schema": schema or {},
-            }
-
-            logger.debug(f"Registered automation action: {name}")
-            return fn
+            return super(ActionRegistry, self).register(
+                name,
+                definition,
+                replace=replace,
+            )
 
         return decorator
 
-    # -----------------------------
-    # VALIDATION
-    # -----------------------------
-    @classmethod
-    def validate(cls, action):
-        action_def = cls.REGISTRY.get(action.type)
+ACTION_REGISTRY = ActionRegistry()
 
-        if not action_def:
-            raise ValueError(f"Unknown action type: {action.type}")
-
-        schema = action_def.get("schema", {})
-        required_fields = schema.get("required", [])
-
-        for field in required_fields:
-            if field not in action.config:
-                raise ValueError(
-                    f"Missing required config field '{field}' for action '{action.type}'"
-                )
-
-    # -----------------------------
-    # EXECUTION
-    # -----------------------------
-    @classmethod
-    def run(cls, action, results: Any, context: dict):
-        action_def = cls.REGISTRY.get(action.type)
-
-        if action_def is None:
-            raise ValueError(f"Unknown action type: {action.type}")
-
-        handler = action_def["handler"]
-
-        if not callable(handler):
-            raise TypeError(f"Handler for action {action.type} is not callable")
-
-        # Validate BEFORE execution
-        cls.validate(action)
-
-        try:
-            logger.info(
-                f"Running action '{action.type}' "
-                f"for trigger {context.get('trigger_id')}"
-            )
-
-            handler(results, action.config, context)
-
-        except Exception as e:
-            logger.exception(f"Error running action '{action.type}': {e}")
-            raise

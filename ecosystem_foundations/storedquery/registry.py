@@ -1,12 +1,8 @@
-ENTITY_REGISTRY = set()
+from base.registry import SetRegistry, SingleRegistry
 
 
-def register_entity(model):
-    if model in ENTITY_REGISTRY:
-        return  # avoid duplicates silently (or raise if you prefer)
+QUERY_ENTITY_REGISTRY = SetRegistry()
 
-    ENTITY_REGISTRY.add(model)
+QUERY_PRECOMPUTE_REGISTRY = SingleRegistry()
 
 
-def get_registered_entities():
-    return ENTITY_REGISTRY

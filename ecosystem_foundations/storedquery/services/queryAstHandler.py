@@ -6,7 +6,7 @@ from django.db import models
 from datetime import date, datetime, timedelta
 import uuid
 
-from .registry import get_registered_entities
+from storedquery.registry import QUERY_ENTITY_REGISTRY
 from utils.engine.dsl_evaluator import DslEvaluator
 
 from .model_utils import getModelFromName
@@ -347,7 +347,7 @@ class QueryAstHandler(DslEvaluator):
                 base_model = getModelFromName(entity_name)
             except Exception:
                 raise ValueError(f"Could not find a model for the given name: {entity_name}")
-            if not issubclass(base_model, models.Model) or base_model not in get_registered_entities():
+            if not issubclass(base_model, models.Model) or base_model not in QUERY_ENTITY_REGISTRY:
                 raise ValueError(f"Model: {base_model} is not authorized to be queried")
             else:
                 # ---- Compile + execute ----
