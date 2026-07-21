@@ -1,48 +1,76 @@
 from django.contrib import admin
-
-from .forms import FieldPermissionsForm, UserAdminForm
-from .models import FieldPermissions, User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-# Register your models here.
+from .models import User, UserRole
+from .forms import UserAdminForm
+
+
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     form = UserAdminForm
-    list_display = ('username', 'email', 'role', 'is_staff', 'is_superuser')
-    list_filter = ('role', 'is_staff', 'is_superuser', 'is_active')
-    fieldsets = (
-        (None, {'fields': ('username', 'password')}),
-        ('Personal info', {'fields': ('full_name', 'email')}),
-        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-        ('Important dates', {'fields': ('date_joined',)}),
+
+    list_display = (
+        "username",
+        "email",
+        "role",
+        "is_staff",
+        "is_superuser",
+        "is_active",
     )
+
+    list_filter = (
+        "role",
+        "is_staff",
+        "is_superuser",
+        "is_active",
+    )
+
+    fieldsets = (
+        (None, {"fields": ("username", "password")}),
+
+        ("Personal Info", {
+            "fields": ("full_name", "email")
+        }),
+
+        ("Access", {
+            "fields": (
+                "role",
+                "is_active",
+                "is_staff",
+                "is_superuser",
+            )
+        }),
+
+        ("Groups & Permissions", {
+            "fields": ("groups", "user_permissions")
+        }),
+
+        ("Important Dates", {
+            "fields": ("date_joined",)
+        }),
+    )
+
     add_fieldsets = (
         (None, {
-            'classes': ('wide',),
-            'fields': ('username', 'password1', 'password2', 'role', 'is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}
-        ),
+            "classes": ("wide",),
+            "fields": (
+                "username",
+                "password1",
+                "password2",
+                "role",
+                "is_active",
+                "is_staff",
+                "is_superuser",
+            ),
+        }),
     )
-    search_fields = ('username', 'email')
-    ordering = ('username',)
-    filter_horizontal = ('groups', 'user_permissions')  # <-- two-box style
 
+    search_fields = ("username", "email")
+    ordering = ("username",)
+    filter_horizontal = ("groups", "user_permissions")
 
-#@admin.register(FieldPermissions)
-class FieldPermissionsAdmin(admin.ModelAdmin):
-    form = FieldPermissionsForm
-
-    list_display = ("role", "model_name", "field_name", "get_flags")
-    list_filter = ("role", "model_name")
-    search_fields = ("model_name", "field_name")
-
-    def get_flags(self, obj):
-        flags = []
-        if obj.has_flag(FieldPermissions.Flag.VIEW):
-            flags.append("V")
-        if obj.has_flag(FieldPermissions.Flag.EDIT):
-            flags.append("E")
-        if obj.has_flag(FieldPermissions.Flag.ADD):
-            flags.append("A")
-        if obj.has_flag(FieldPermissions.Flag.DELETE):
-            flags.append("D")
-        return "".join(flags)
+@admin.register(UserRole)
+class UserRoleAdmin(admin.ModelAdmin):
+    list_display = ("key", "label", "is_system")
+    search_fields = ("key", "label")
+    list_filter = ("is_system",)
