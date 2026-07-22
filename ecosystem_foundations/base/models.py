@@ -2,9 +2,13 @@ import numbers
 import uuid
 
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
+from django.core.validators import MinLengthValidator
+
+from .registry import NOTABLE_MODELS_REGISTRY
 
 # Create your models here.
 
@@ -31,6 +35,24 @@ class TimeAuditableMixin(models.Model):
     class Meta:
         abstract = True
 
+class ActiveQuerySet(models.QuerySet):
+    def active(self):
+        return self.filter(is_active=True)
+
+    def inactive(self):
+        return self.filter(is_active=False)
+
+
+class ActiveManager(models.Manager):
+    def get_queryset(self):
+        return ActiveQuerySet(self.model, using=self._db)
+
+    def active(self):
+        return self.get_queryset().active()
+
+    def inactive(self):
+        return self.get_queryset().inactive()
+
 """
     This will be a mixin class that allows a row to marked as Active or Not Active.
 """
@@ -38,16 +60,71 @@ class ActiveMixin(models.Model):
     is_active = models.BooleanField(default=True, db_index=True)
     deactivated_at = models.DateTimeField(null=True, blank=True)
 
+    objects = ActiveManager()
+
     class Meta:
         abstract = True
 
-    def deactivate(self):
+    def deactivate(self, commit=True):
         self.is_active = False
         self.deactivated_at = timezone.now()
+        if commit:
+            self.save(update_fields=["is_active", "deactivated_at"])
 
-    def activate(self):
+    def activate(self, commit=True):
         self.is_active = True
         self.deactivated_at = None
+        if commit:
+            self.save(update_fields=["is_active", "deactivated_at"])
+
+    def clean(self):
+        if self.is_active and self.deactivated_at is not None:
+            raise ValidationError("Active objects cannot have deactivated_at set")
+
+        if not self.is_active and self.deactivated_at is None:
+            raise ValidationError("Inactive objects must have deactivated_at set")
+
+class CreatedByMixin(models.Model):
+
+    created_by = models.ForeignKey(
+        "users.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="%(app_label)s_%(class)s_created"
+    )
+
+    class Meta:
+        abstract = True
+
+class BaseIsSystemMixin(models.Model):
+
+    is_system = models.BooleanField(default=False)
+
+    class Meta:
+        abstract = True
+
+    def delete(self, *args, **kwargs):
+        if self.is_system:
+            raise Exception("System types cannot be deleted")
+        super().delete(*args, **kwargs)
+
+
+class BaseItemType(ActiveMixin, BaseIsSystemMixin):
+    name = models.CharField(max_length=100, db_index=True)
+    code = models.CharField(max_length=100)
+
+    class Meta:
+        abstract = True
+        indexes = [
+            models.Index(fields=["is_active", "code"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["code"],
+                name="unique_%(class)s_code"
+            )
+        ]
 
 """
     Soft Delete functionality allowed to perform quick actions and delete data later.
@@ -397,3 +474,25 @@ class BaseRunModel(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
 
     class Meta:
         abstract = True
+
+class Note(RequiredGenericUuidTargetMixin, ActiveMixin, CreatedByMixin, TimeAuditableMixin, BaseUuidPrimaryKeyModel):
+
+    content = models.TextField(validators=[MinLengthValidator(1)])
+
+    def clean(self):
+        super().clean()
+
+        if not self.content or not self.content.strip():
+            raise ValidationError({
+                "content": "Note content cannot be empty or whitespace"
+            })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def get_allowed_registry(self):
+        return NOTABLE_MODELS_REGISTRY
+
+    def __str__(self):
+        return f"Note({self.id})"

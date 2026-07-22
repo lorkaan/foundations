@@ -1,11 +1,13 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.utils import timezone
+import pghistory
 
-
-from base.models import ActiveMixin, BaseUuidPrimaryKeyModel, TimeAuditableMixin
+from base.models import ActiveMixin, BaseUuidPrimaryKeyModel, CreatedByMixin, RequiredGenericUuidTargetMixin, TimeAuditableMixin
+from .registry import USER_ASSIGNABLE_MODELS_REGISTRY
 from .managers import UserManager
-    
+
+@pghistory.track()
 class UserRole(models.Model):
     key = models.CharField(max_length=50, unique=True)
     label = models.CharField(max_length=255)
@@ -14,7 +16,8 @@ class UserRole(models.Model):
 
     def __str__(self):
         return self.label
-    
+
+@pghistory.track()
 class User(AbstractBaseUser, PermissionsMixin, ActiveMixin, TimeAuditableMixin, BaseUuidPrimaryKeyModel):
     username = models.CharField(max_length=150, unique=True)
     full_name = models.CharField(max_length=255, blank=True)
@@ -33,6 +36,14 @@ class User(AbstractBaseUser, PermissionsMixin, ActiveMixin, TimeAuditableMixin, 
     def __str__(self):
         return self.username
     
+@pghistory.track()
+class UserAssignment(RequiredGenericUuidTargetMixin, ActiveMixin, CreatedByMixin, TimeAuditableMixin, BaseUuidPrimaryKeyModel):
 
-    
+    user = models.ForeignKey(User, on_delete=models.PROTECT)
+
+    def get_allowed_registry(self):
+        return USER_ASSIGNABLE_MODELS_REGISTRY
+
+    def __str__(self):
+        return f"UserAssignment({self.id})"
 

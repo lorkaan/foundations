@@ -1,5 +1,43 @@
 from utils.type_utils import isList
+from django.contrib.contenttypes.models import ContentType
+from dataclasses import dataclass
+from typing import Type
+from django.db import models
 
+from typing import TypeVar, Generic, Callable, Dict, Iterable
+
+T = TypeVar("T")
+
+
+class GenericRegistry(Generic[T]):
+    def __init__(
+        self,
+        key_fn: Callable[[T], object],
+        validator: Callable[[T], None] | None = None,
+    ):
+        self._items: Dict[object, T] = {}
+        self._key_fn = key_fn
+        self._validator = validator
+
+    def register(self, item: T):
+        if self._validator:
+            self._validator(item)
+
+        key = self._key_fn(item)
+
+        if key in self._items:
+            raise ValueError(f"Duplicate registration for key: {key}")
+
+        self._items[key] = item
+
+    def get_all(self) -> Iterable[T]:
+        return self._items.values()
+
+    def get(self, key: object) -> T:
+        return self._items[key]
+
+    def __contains__(self, key: object) -> bool:
+        return key in self._items
 
 class BaseRegistry:
     def __init__(self):
@@ -72,3 +110,39 @@ class SetRegistry:
 
     def __iter__(self):
         return iter(self._registry)
+
+class ModelRegistry:
+    def __init__(self):
+        self._registry = set()
+
+    def add(self, *models_):
+        for model in models_:
+            if not isinstance(model, type) or not issubclass(model, models.Model):
+                raise TypeError(f"{model} is not a Django model")
+
+            ct = ContentType.objects.get_for_model(model)
+            self._registry.add(ct)
+
+    def __contains__(self, value):
+        if isinstance(value, ContentType):
+            return value in self._registry
+
+        if isinstance(value, models.Model):
+            value = value.__class__
+
+        if isinstance(value, type) and issubclass(value, models.Model):
+            ct = ContentType.objects.get_for_model(value)
+            return ct in self._registry
+
+        return False
+
+    def __iter__(self):
+        return iter(self._registry)
+
+@dataclass(frozen=True)
+class BaseItemTypeDefinition:
+    model: Type[models.Model]
+    code: str
+    name: str
+
+NOTABLE_MODELS_REGISTRY = ModelRegistry()

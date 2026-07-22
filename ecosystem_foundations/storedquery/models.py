@@ -1,19 +1,19 @@
 from django.db import models
 from django.db.models import Q
 from django.apps import apps
+from django.contrib.contenttypes.models import ContentType
+import pghistory
 
 from base.models import BaseUuidPrimaryKeyModel, TimeAuditableMixin
 from users.models import User
 
 # Create your models here.
+@pghistory.track()
 class SavedQuery(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
 
-    model = models.CharField(
-        max_length=100,
-        help_text="app_label.ModelName"
-    )
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
 
     query = models.JSONField()
 
@@ -51,18 +51,7 @@ class SavedQuery(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
         app_label, model_name = self.model.split(".")
         return apps.get_model(app_label, model_name)
 
-# I need to change the choices I think and check the target_type and target_id, 
-# I dont know why I cant just use the Permissions
 class SavedQueryPermission(models.Model):
-    class TargetType(models.TextChoices):
-        USER = "user", "User"
-        ROLE = "role", "Role"
-        ALL = "all", "All users"
-        # future: TEAM, COMPANY, ORG
-
-    class Level(models.IntegerChoices):
-        VIEW = 1
-        EDIT = 2
 
     query = models.ForeignKey(
         SavedQuery,
@@ -70,16 +59,18 @@ class SavedQueryPermission(models.Model):
         related_name="permissions"
     )
 
-    target_type = models.CharField(
-        max_length=10,
-        choices=TargetType.choices
-    )
-
-    target_id = models.CharField(
-        max_length=50,
+    role = models.ForeignKey(
+        "users.UserRole",
         null=True,
         blank=True,
-        help_text="User ID, role code, etc."
+        on_delete=models.CASCADE
+    )
+
+    user = models.ForeignKey(
+        "users.User",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE
     )
 
     level = models.PositiveSmallIntegerField(
@@ -89,8 +80,21 @@ class SavedQueryPermission(models.Model):
 
     class Meta:
         constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(role__isnull=False, user__isnull=True) |
+                    models.Q(role__isnull=True, user__isnull=False)
+                ),
+                name="query_permission_role_xor_user"
+            ),
             models.UniqueConstraint(
-                fields=["query", "target_type", "target_id"],
-                name="unique_query_permission"
-            )
+                fields=["query", "role"],
+                condition=models.Q(role__isnull=False),
+                name="unique_query_role_permission"
+            ),
+            models.UniqueConstraint(
+                fields=["query", "user"],
+                condition=models.Q(user__isnull=False),
+                name="unique_query_user_permission"
+            ),
         ]

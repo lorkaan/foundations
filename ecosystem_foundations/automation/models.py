@@ -4,10 +4,12 @@ from django.core.exceptions import ValidationError
 
 from datetime import timedelta
 
+from storedquery.models import SavedQuery
+
 
 from .registry import ACTION_REGISTRY
 from base.models import ActiveMixin, BaseRunModel, BaseUuidPrimaryKeyModel, TimeAuditableMixin
-from watchdog.models import SignalType
+from watchdog.models import SignalItemType
 
 # Create your models here.
 
@@ -64,7 +66,7 @@ class AutomationTrigger(ActiveMixin, TimeAuditableMixin, BaseUuidPrimaryKeyModel
     )
 
     signal_type = models.ForeignKey(
-        SignalType,
+        SignalItemType,
         null=True,
         blank=True,
         on_delete=models.CASCADE

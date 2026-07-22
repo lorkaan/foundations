@@ -1,21 +1,15 @@
 from django.db import models
+import pghistory
 
-from base.models import BaseUuidPrimaryKeyModel, OptionalGenericUuidTargetMixin
+from base.models import BaseItemType, BaseUuidPrimaryKeyModel, OptionalGenericUuidTargetMixin
 
 # Create your models here.
-class SignalType(models.Model):
-    label = models.CharField(max_length=250, unique=True)
+class SignalItenType(BaseItemType):
+    pass
 
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                condition=~Q(label=""),
-                name="signal_type_label_not_empty",
-            )
-        ]
-
+@pghistory.track()
 class Signal(OptionalGenericUuidTargetMixin, BaseUuidPrimaryKeyModel):
-    signal_type = models.ForeignKey(SignalType, on_delete=models.PROTECT)
+    signal_type = models.ForeignKey(SignalItenType, on_delete=models.PROTECT)
     #severity = models.ForeignKey(SignalSeverity, on_delete=models.PROTECT)
     metadata = models.JSONField(default=dict, blank=True)
     processed_at = models.DateTimeField(null=True, blank=True)

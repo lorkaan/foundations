@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Dict, Iterable
 
+from base.registry import ModelRegistry
+
 @dataclass(frozen=True)
 class RoleDefinition:
     key: str
@@ -72,8 +74,10 @@ class UserRoleRegistry:
         self._locked = True
 
 
-user_role_registry = UserRoleRegistry()
+USER_ROLE_REGISTRY = UserRoleRegistry()
 
 def register_role(key: str, label: str, *, system=False):
     role = RoleDefinition(key=key, label=label, system=system)
-    return user_role_registry.register(role)
+    return USER_ROLE_REGISTRY.register(role)
+
+USER_ASSIGNABLE_MODELS_REGISTRY = ModelRegistry()
