@@ -14,6 +14,7 @@ from .model_utils import getModelFromName
 from utils.dict_utils import dictToStr, isDict
 from utils.type_utils import isFloat, isInteger, isList, isNumber, isString
 
+
 class QueryAstHandler(DslEvaluator):
 
     precompute_functions = {
