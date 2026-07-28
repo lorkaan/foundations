@@ -3,8 +3,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 
 from datetime import timedelta
-
-from storedquery.models import SavedQuery
+from ..storedquery.models import SavedQuery
 
 
 from .registry import ACTION_REGISTRY
