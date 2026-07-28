@@ -1,4 +1,4 @@
-from utils.type_utils import isList
+from ..utils.type_utils import isList
 from django.contrib.contenttypes.models import ContentType
 from dataclasses import dataclass
 from typing import Type
