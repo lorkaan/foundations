@@ -2,7 +2,7 @@ from django.apps import AppConfig
 
 
 class UsersConfig(AppConfig):
-    name = 'users'
+    name = 'ecosystem_foundations.users'
 
     def ready(self):
         from .registry import user_role_registry

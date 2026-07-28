@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class EncryptionConfig(AppConfig):
-    name = 'encryption'
+    name = 'ecosystem_foundations.encryption'
