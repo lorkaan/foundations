@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class StoredqueryConfig(AppConfig):
-    name = 'ecosystem_foundations.storedquery'
+    name = 'foundations.ecosystem_foundations.storedquery'

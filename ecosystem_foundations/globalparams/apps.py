@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class GlobalparamsConfig(AppConfig):
-    name = 'ecosystem_foundations.globalparams'
+    name = 'foundations.ecosystem_foundations.globalparams'

@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class LabelsConfig(AppConfig):
-    name = 'ecosystem_foundations.labels'
+    name = 'foundations.ecosystem_foundations.labels'

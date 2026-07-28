@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class WatchdogConfig(AppConfig):
-    name = 'ecosystem_foundations.watchdog'
+    name = 'foundations.ecosystem_foundations.watchdog'
