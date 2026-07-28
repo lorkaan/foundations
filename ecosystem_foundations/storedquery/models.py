@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models import Q
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
+from ecosystem_foundations.storedquery.constants import Level
 import pghistory
 
 from base.models import BaseUuidPrimaryKeyModel, TimeAuditableMixin
@@ -13,7 +14,7 @@ class SavedQuery(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
 
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    model = models.ForeignKey(ContentType, on_delete=models.CASCADE)
 
     query = models.JSONField()
 

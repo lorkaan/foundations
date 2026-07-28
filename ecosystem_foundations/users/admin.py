@@ -71,6 +71,6 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(UserRole)
 class UserRoleAdmin(admin.ModelAdmin):
-    list_display = ("key", "label", "is_system")
-    search_fields = ("key", "label")
+    list_display = ("code", "name", "is_system")
+    search_fields = ("code", "name")
     list_filter = ("is_system",)

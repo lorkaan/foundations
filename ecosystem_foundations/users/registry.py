@@ -5,8 +5,8 @@ from base.registry import ModelRegistry
 
 @dataclass(frozen=True)
 class RoleDefinition:
-    key: str
-    label: str
+    code: str
+    name: str
     system: bool = False
     default_permissions: dict = field(default_factory=dict)
 
@@ -30,7 +30,7 @@ class UserRoleRegistry:
         if not isinstance(role, RoleDefinition):
             raise TypeError("Only RoleDefinition instances can be registered")
 
-        if not role.key or not role.key.strip():
+        if not role.key or not role.code.strip():
             raise ValueError("Role key cannot be empty")
 
         if role.key in self._roles and not replace:
@@ -76,8 +76,8 @@ class UserRoleRegistry:
 
 USER_ROLE_REGISTRY = UserRoleRegistry()
 
-def register_role(key: str, label: str, *, system=False):
-    role = RoleDefinition(key=key, label=label, system=system)
+def register_role(code: str, name: str, *, system=False):
+    role = RoleDefinition(code=code, name=name, system=system)
     return USER_ROLE_REGISTRY.register(role)
 
 USER_ASSIGNABLE_MODELS_REGISTRY = ModelRegistry()

@@ -6,11 +6,11 @@ from ..registry import user_role_registry
 
 @transaction.atomic
 def sync_roles():
-    for key, role_def in user_role_registry.items():
+    for code, role_def in user_role_registry.items():
         role, _ = UserRole.objects.update_or_create(
-            key=key,
+            code=code,
             defaults={
-                "label": role_def.label,
+                "name": role_def.name,
                 "is_system": role_def.system,
             }
         )

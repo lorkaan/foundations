@@ -21,7 +21,7 @@ class UserManager(BaseUserManager):
 
         if isinstance(role_input, str):
             try:
-                return UserRole.objects.get(key=role_input)
+                return UserRole.objects.get(code=role_input)
             except ObjectDoesNotExist:
                 raise ValueError(f"Invalid role: {role_input}")
 

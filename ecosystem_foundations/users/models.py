@@ -3,19 +3,17 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseU
 from django.utils import timezone
 import pghistory
 
-from base.models import ActiveMixin, BaseUuidPrimaryKeyModel, CreatedByMixin, RequiredGenericUuidTargetMixin, TimeAuditableMixin
+from base.models import ActiveMixin, BaseItemType, BaseUuidPrimaryKeyModel, CreatedByMixin, RequiredGenericUuidTargetMixin, TimeAuditableMixin
 from .registry import USER_ASSIGNABLE_MODELS_REGISTRY
 from .managers import UserManager
 
 @pghistory.track()
-class UserRole(models.Model):
-    key = models.CharField(max_length=50, unique=True)
-    label = models.CharField(max_length=255)
+class UserRole(BaseItemType):
+    description = models.TextField(blank=True)
 
-    is_system = models.BooleanField(default=False)
-
-    def __str__(self):
-        return self.label
+    class Meta(BaseItemType.Meta):
+        verbose_name = "User Role"
+        verbose_name_plural = "User Roles"
 
 @pghistory.track()
 class User(AbstractBaseUser, PermissionsMixin, ActiveMixin, TimeAuditableMixin, BaseUuidPrimaryKeyModel):
@@ -46,4 +44,11 @@ class UserAssignment(RequiredGenericUuidTargetMixin, ActiveMixin, CreatedByMixin
 
     def __str__(self):
         return f"UserAssignment({self.id})"
+
+    constraints = [
+        models.UniqueConstraint(
+            fields=["user", "content_type", "object_id"],
+            name="unique_user_assignment"
+        )
+    ]
 
