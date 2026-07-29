@@ -1,7 +1,7 @@
 
 # ------ Register Signal Types -------
 
-from base.registry import MultiRegistry, SetRegistry
+from ..base.registry import MultiRegistry, SetRegistry
 
 
 REGISTERED_SIGNAL_TYPES = SetRegistry()
