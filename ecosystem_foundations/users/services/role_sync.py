@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.contrib.contenttypes.models import ContentType
 from ..models import UserRole
-from iam.models import RoleFieldPermission
+from ...iam.models import RoleFieldPermission
 from ..registry import user_role_registry
 
 @transaction.atomic
