@@ -12,8 +12,8 @@ from .models import (
 
 from .runner import ActionEngine
 
-from storedquery.services.queryAstHandler import QueryAstHandler
-from utils.engine.boolAstHandler import BooleanAstHandler
+from ..storedquery.services.queryAstHandler import QueryAstHandler
+from ..utils.engine.boolAstHandler import BooleanAstHandler
 
 import logging
 

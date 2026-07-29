@@ -1,8 +1,8 @@
 from django.shortcuts import render
-from ecosystem_foundations.watchdog.models import Signal, SignalItemType
-from ecosystem_foundations.watchdog.serializers import SignalItemTypeSerializer, SignalSerializer
+from .models import Signal, SignalItemType
+from .serializers import SignalItemTypeSerializer, SignalSerializer
 from rest_framework import viewsets
-from ecosystem_foundations.base.views import ActiveQuerysetMixin, BaseItemTypeQueryViewSetMixin, BaseQueryViewSetMixin, TimeAuditableQuerysetMixin 
+from ..base.views import ActiveQuerysetMixin, BaseItemTypeQueryViewSetMixin, BaseQueryViewSetMixin, TimeAuditableQuerysetMixin 
 
 # Create your views here.
 class SignalItemTypeViewSet(
