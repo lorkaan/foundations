@@ -1,8 +1,6 @@
 from django.contrib.auth.models import BaseUserManager
 from django.core.exceptions import ObjectDoesNotExist
 
-from .models import UserRole
-
 
 class UserManager(BaseUserManager):
 
@@ -13,6 +11,7 @@ class UserManager(BaseUserManager):
         - string → lookup by key
         - UserRole instance → return as-is
         """
+        from .models import UserRole
         if role_input is None:
             role_input = "guest"
 
