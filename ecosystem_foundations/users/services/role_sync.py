@@ -2,11 +2,11 @@ from django.db import transaction
 from django.contrib.contenttypes.models import ContentType
 from ..models import UserRole
 from ...iam.models import RoleFieldPermission
-from ..registry import user_role_registry
+from ..registry import USER_ROLE_REGISTRY
 
 @transaction.atomic
 def sync_roles():
-    for code, role_def in user_role_registry.items():
+    for code, role_def in USER_ROLE_REGISTRY.items():
         role, _ = UserRole.objects.update_or_create(
             code=code,
             defaults={
