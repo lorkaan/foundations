@@ -1,4 +1,8 @@
-class PermissionFlag:
+
+
+from enum import IntFlag
+
+class PermissionFlag(IntFlag):
     VIEW = 1 << 0
     EDIT = 1 << 1
     ADD = 1 << 2

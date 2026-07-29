@@ -3,7 +3,7 @@ import enum
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 
-from iam.flags import PermissionFlag
+from .flags import PermissionFlag
 
 class FieldPermission(models.Model):
 
