@@ -1,8 +1,8 @@
 from django.shortcuts import render
-from ecosystem_foundations.iam.models import RoleFieldPermission, UserFieldPermission
-from ecosystem_foundations.iam.serializers import RoleFieldPermissionSerializer, UserFieldPermissionSerializer
+from .models import RoleFieldPermission, UserFieldPermission
+from .serializers import RoleFieldPermissionSerializer, UserFieldPermissionSerializer
 from rest_framework import viewsets
-from ecosystem_foundations.base.views import BaseQueryViewSetMixin, ContentTypeQuerysetMixin, ForeignKeyFilterMixin
+from ..base.views import BaseQueryViewSetMixin, ContentTypeQuerysetMixin, ForeignKeyFilterMixin
 
 # Create your views here.
 class FieldPermissionQuerysetMixin(BaseQueryViewSetMixin):

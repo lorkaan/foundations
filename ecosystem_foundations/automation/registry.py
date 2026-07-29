@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Callable
-from base.registry import SingleRegistry
+from ..base.registry import SingleRegistry
 
 @dataclass
 class ActionDefinition:

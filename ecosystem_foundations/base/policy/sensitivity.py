@@ -1,5 +1,5 @@
 
-from automation import models
+from django.db import models
 
 
 class DataSensitivity(models.TextChoices):

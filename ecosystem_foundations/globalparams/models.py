@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from datetime import datetime
 import uuid
 
-from base.models import ActiveMixin, BaseUuidPrimaryKeyModel, TimeAuditableMixin
+from ..base.models import ActiveMixin, BaseUuidPrimaryKeyModel, TimeAuditableMixin
 
 
 # ============================

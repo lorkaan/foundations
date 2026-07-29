@@ -1,8 +1,8 @@
 from django.shortcuts import render
 from rest_framework import viewsets
-from ecosystem_foundations.base.views import ActiveQuerysetMixin, BaseQueryViewSetMixin, TimeAuditableQuerysetMixin
-from ecosystem_foundations.globalparams.models import GlobalParameter
-from ecosystem_foundations.globalparams.serializers import GlobalParameterSerializer
+from ..base.views import ActiveQuerysetMixin, BaseQueryViewSetMixin, TimeAuditableQuerysetMixin
+from .models import GlobalParameter
+from .serializers import GlobalParameterSerializer
 
 # Create your views here.
 

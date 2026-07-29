@@ -1,7 +1,7 @@
 from django.shortcuts import render
-from ecosystem_foundations.automation.models import AutomationAction, AutomationActionRun, AutomationRule, AutomationRun, AutomationTrigger
-from ecosystem_foundations.automation.serializers import AutomationActionRunSerializer, AutomationActionSerializer, AutomationRuleSerializer, AutomationRunSerializer, AutomationTriggerSerializer
-from ecosystem_foundations.base.views import ActiveQuerysetMixin, BaseQueryViewSetMixin, ForeignKeyFilterMixin, TimeAuditableQuerysetMixin
+from .models import AutomationAction, AutomationActionRun, AutomationRule, AutomationRun, AutomationTrigger
+from .serializers import AutomationActionRunSerializer, AutomationActionSerializer, AutomationRuleSerializer, AutomationRunSerializer, AutomationTriggerSerializer
+from ..base.views import ActiveQuerysetMixin, BaseQueryViewSetMixin, ForeignKeyFilterMixin, TimeAuditableQuerysetMixin
 from rest_framework import viewsets
 
 # Create your views here.

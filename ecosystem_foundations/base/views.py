@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.contrib.contenttypes.models import ContentType
-from ecosystem_foundations.base.constants import ActiveState, ComparisonOperator, SystemState
+from .constants import ActiveState, ComparisonOperator, SystemState
 
 # Create your views here.
 

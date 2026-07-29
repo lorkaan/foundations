@@ -7,8 +7,8 @@ from ..storedquery.models import SavedQuery
 
 
 from .registry import ACTION_REGISTRY
-from base.models import ActiveMixin, BaseRunModel, BaseUuidPrimaryKeyModel, TimeAuditableMixin
-from watchdog.models import SignalItemType
+from ..base.models import ActiveMixin, BaseRunModel, BaseUuidPrimaryKeyModel, TimeAuditableMixin
+from ..watchdog.models import SignalItemType
 
 # Create your models here.
 

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, Iterable
 
-from base.registry import ModelRegistry
+from ..base.registry import ModelRegistry
 
 @dataclass(frozen=True)
 class RoleDefinition:

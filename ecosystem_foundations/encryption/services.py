@@ -1,5 +1,5 @@
 from django.conf import settings
-from backends.services import get_backend
+from ..backends.services import get_backend
 
 
 def get_encryption_backend():

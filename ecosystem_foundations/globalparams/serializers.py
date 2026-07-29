@@ -1,4 +1,4 @@
-from ecosystem_foundations.base.serializers import ActiveSerializerMixin, TimeAuditableSerializerMixin
+from ..base.serializers import ActiveSerializerMixin, TimeAuditableSerializerMixin
 from rest_framework import serializers
 
 from .models import GlobalParameter

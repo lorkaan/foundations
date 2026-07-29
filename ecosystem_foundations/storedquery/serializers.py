@@ -1,8 +1,8 @@
-from ecosystem_foundations.users.serializers import UserRoleSerializer, UserSerializer
+from ..users.serializers import UserRoleSerializer, UserSerializer
 from rest_framework import serializers
-from ecosystem_foundations.base.serializers import ContentTypeField, TimeAuditableSerializerMixin
-from ecosystem_foundations.storedquery.models import SavedQuery, SavedQueryPermission
-from ecosystem_foundations.users.models import User, UserRole
+from ..base.serializers import ContentTypeField, TimeAuditableSerializerMixin
+from .models import SavedQuery, SavedQueryPermission
+from ..users.models import User, UserRole
 
 class SavedQueryPermissionSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)

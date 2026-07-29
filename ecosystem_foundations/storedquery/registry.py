@@ -1,4 +1,4 @@
-from base.registry import SetRegistry, SingleRegistry
+from ..base.registry import SetRegistry, SingleRegistry
 
 
 QUERY_ENTITY_REGISTRY = SetRegistry()

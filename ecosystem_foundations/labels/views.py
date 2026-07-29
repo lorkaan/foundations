@@ -1,8 +1,8 @@
 from django.shortcuts import render
-from ecosystem_foundations.labels.models import ModelFieldLabel
-from ecosystem_foundations.labels.serializers import ModelFieldLabelSerializer
+from .models import ModelFieldLabel
+from .serializers import ModelFieldLabelSerializer
 from rest_framework import viewsets
-from ecosystem_foundations.base.views import BaseQueryViewSetMixin, ContentTypeQuerysetMixin
+from ..base.views import BaseQueryViewSetMixin, ContentTypeQuerysetMixin
 
 # Create your views here.
 class ModelFieldLabelQuerysetMixin(BaseQueryViewSetMixin):

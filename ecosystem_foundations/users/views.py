@@ -1,8 +1,8 @@
 from django.shortcuts import render
-from ecosystem_foundations.users.models import User, UserAssignment, UserRole
-from ecosystem_foundations.users.serializers import UserAssignmentSerializer, UserRoleSerializer, UserSerializer
+from .models import User, UserAssignment, UserRole
+from .serializers import UserAssignmentSerializer, UserRoleSerializer, UserSerializer
 from rest_framework import viewsets
-from ecosystem_foundations.base.views import ActiveQuerysetMixin, BaseItemTypeQueryViewSetMixin, BaseQueryViewSetMixin, ForeignKeyFilterMixin, GenericTargetQuerysetMixin, TimeAuditableQuerysetMixin
+from ..base.views import ActiveQuerysetMixin, BaseItemTypeQueryViewSetMixin, BaseQueryViewSetMixin, ForeignKeyFilterMixin, GenericTargetQuerysetMixin, TimeAuditableQuerysetMixin
 
 # Create your views here.
 

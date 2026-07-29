@@ -1,10 +1,10 @@
-from ecosystem_foundations.automation.models import AutomationAction, AutomationActionRun, AutomationRule, AutomationRun, AutomationTrigger, TriggerTypes
-from ecosystem_foundations.automation.registry import ACTION_REGISTRY
-from ecosystem_foundations.storedquery.models import SavedQuery
-from ecosystem_foundations.storedquery.serializers import SavedQuerySerializer
+from .models import AutomationAction, AutomationActionRun, AutomationRule, AutomationRun, AutomationTrigger, TriggerTypes
+from .registry import ACTION_REGISTRY
+from ..storedquery.models import SavedQuery
+from ..storedquery.serializers import SavedQuerySerializer
 from rest_framework import serializers
-from ecosystem_foundations.base.serializers import ActiveSerializerMixin, BaseRunSerializerMixin, TimeAuditableSerializerMixin
-from ecosystem_foundations.watchdog.models import SignalItemType
+from ..base.serializers import ActiveSerializerMixin, BaseRunSerializerMixin, TimeAuditableSerializerMixin
+from ..watchdog.models import SignalItemType
 
 class AutomationRuleSerializer(
     TimeAuditableSerializerMixin,

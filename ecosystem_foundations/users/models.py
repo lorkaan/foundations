@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseU
 from django.utils import timezone
 import pghistory
 
-from base.models import ActiveMixin, BaseItemType, BaseUuidPrimaryKeyModel, CreatedByMixin, RequiredGenericUuidTargetMixin, TimeAuditableMixin
+from ..base.models import ActiveMixin, BaseItemType, BaseUuidPrimaryKeyModel, CreatedByMixin, RequiredGenericUuidTargetMixin, TimeAuditableMixin
 from .registry import USER_ASSIGNABLE_MODELS_REGISTRY
 from .managers import UserManager
 

@@ -2,7 +2,7 @@ from celery import shared_task
 from django.utils import timezone
 from django.db import OperationalError
 
-from watchdog.models import Signal
+from ..watchdog.models import Signal
 from .models import (
     AutomationTrigger,
     AutomationActionRun,

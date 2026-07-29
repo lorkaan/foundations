@@ -1,4 +1,4 @@
-from ..utils.registry import SingleRegistry
+from ..base.registry import SingleRegistry
 from .exceptions import InvalidBackend, BackendNotFound
 
 

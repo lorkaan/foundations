@@ -6,13 +6,13 @@ from django.db import models
 from datetime import date, datetime, timedelta
 import uuid
 
-from storedquery.registry import QUERY_ENTITY_REGISTRY
-from utils.engine.dsl_evaluator import DslEvaluator
+from ..registry import QUERY_ENTITY_REGISTRY
+from ...utils.engine.dsl_evaluator import DslEvaluator
 
 from .model_utils import getModelFromName
 
-from utils.dict_utils import dictToStr, isDict
-from utils.type_utils import isFloat, isInteger, isList, isNumber, isString
+from ...utils.dict_utils import dictToStr, isDict
+from ...utils.type_utils import isFloat, isInteger, isList, isNumber, isString
 
 
 class QueryAstHandler(DslEvaluator):

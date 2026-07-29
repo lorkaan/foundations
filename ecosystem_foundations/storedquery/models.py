@@ -2,11 +2,11 @@ from django.db import models
 from django.db.models import Q
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
-from ecosystem_foundations.storedquery.constants import Level
+from .constants import Level
 import pghistory
 
-from base.models import BaseUuidPrimaryKeyModel, TimeAuditableMixin
-from users.models import User
+from ..base.models import BaseUuidPrimaryKeyModel, TimeAuditableMixin
+from ..users.models import User
 
 # Create your models here.
 @pghistory.track()

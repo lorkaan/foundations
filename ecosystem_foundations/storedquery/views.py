@@ -1,9 +1,9 @@
 from django.shortcuts import render
-from ecosystem_foundations.storedquery.models import SavedQuery, SavedQueryPermission
-from ecosystem_foundations.storedquery.serializers import SavedQueryPermissionSerializer, SavedQuerySerializer
+from .models import SavedQuery, SavedQueryPermission
+from .serializers import SavedQueryPermissionSerializer, SavedQuerySerializer
 from rest_framework import viewsets
 
-from ecosystem_foundations.base.views import ActiveQuerysetMixin, BaseQueryViewSetMixin, ContentTypeQuerysetMixin, ForeignKeyFilterMixin, IsSystemQuerysetMixin, TimeAuditableQuerysetMixin
+from ..base.views import ActiveQuerysetMixin, BaseQueryViewSetMixin, ContentTypeQuerysetMixin, ForeignKeyFilterMixin, IsSystemQuerysetMixin, TimeAuditableQuerysetMixin
 
 # Create your views here.
 class SavedQueryPermissionQuerysetMixin(BaseQueryViewSetMixin):

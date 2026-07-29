@@ -1,8 +1,8 @@
 
 
-from ecosystem_foundations.base.serializers import ContentTypeField
-from ecosystem_foundations.labels.models import ModelFieldLabel
-from ecosystem_foundations.labels.validators import validate_field_path
+from ..base.serializers import ContentTypeField
+from .models import ModelFieldLabel
+from .validators import validate_field_path
 from rest_framework import serializers
 
 class ModelFieldLabelSerializer(serializers.ModelSerializer):

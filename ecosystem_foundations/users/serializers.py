@@ -1,5 +1,5 @@
-from ecosystem_foundations.base.serializers import ActiveSerializerMixin, GenericTargetField, TimeAuditableSerializerMixin
-from ecosystem_foundations.users.models import User, UserAssignment, UserRole
+from ..base.serializers import ActiveSerializerMixin, GenericTargetField, TimeAuditableSerializerMixin
+from .models import User, UserAssignment, UserRole
 from rest_framework import serializers
 
 class UserRoleSerializer(

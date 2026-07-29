@@ -1,9 +1,9 @@
 
 
-from ecosystem_foundations.base.serializers import ContentTypeField
-from ecosystem_foundations.iam.models import RoleFieldPermission, UserFieldPermission
-from ecosystem_foundations.users.models import User, UserRole
-from ecosystem_foundations.users.serializers import UserRoleSerializer, UserSerializer
+from ..base.serializers import ContentTypeField
+from .models import RoleFieldPermission, UserFieldPermission
+from ..users.models import User, UserRole
+from ..users.serializers import UserRoleSerializer, UserSerializer
 from rest_framework import serializers
 
 class RoleFieldPermissionSerializer(serializers.ModelSerializer):

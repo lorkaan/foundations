@@ -1,4 +1,4 @@
-from ecosystem_foundations.base.models import BaseRunModel
+from .models import BaseRunModel
 from rest_framework import serializers
 from django.contrib.contenttypes.models import ContentType
 

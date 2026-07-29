@@ -1,5 +1,5 @@
-from base.fields import SensitiveFieldMixin
-from encryption.services import decrypt_value, encrypt_value
+from ..base.fields import SensitiveFieldMixin
+from .services import decrypt_value, encrypt_value
 
 
 class EncryptedFieldMixin(SensitiveFieldMixin):
