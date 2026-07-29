@@ -111,33 +111,59 @@ class SetRegistry:
     def __iter__(self):
         return iter(self._registry)
 
+
 class ModelRegistry:
     def __init__(self):
-        self._registry = set()
+        self._registry = set()  # store MODEL CLASSES, not ContentTypes
 
     def add(self, *models_):
         for model in models_:
             if not isinstance(model, type) or not issubclass(model, models.Model):
                 raise TypeError(f"{model} is not a Django model")
 
-            ct = ContentType.objects.get_for_model(model)
-            self._registry.add(ct)
+            self._registry.add(model)
 
     def __contains__(self, value):
+        # -------------------------
+        # ContentType support (lazy resolution)
+        # -------------------------
         if isinstance(value, ContentType):
-            return value in self._registry
+            return any(
+                ContentType.objects.get_for_model(model) == value
+                for model in self._registry
+            )
 
+        # -------------------------
+        # Instance → class
+        # -------------------------
         if isinstance(value, models.Model):
             value = value.__class__
 
+        # -------------------------
+        # Model class
+        # -------------------------
         if isinstance(value, type) and issubclass(value, models.Model):
-            ct = ContentType.objects.get_for_model(value)
-            return ct in self._registry
+            return value in self._registry
 
         return False
 
     def __iter__(self):
         return iter(self._registry)
+
+    # -------------------------
+    # Optional helpers (VERY useful)
+    # -------------------------
+    def get_models(self):
+        return list(self._registry)
+
+    def get_content_types(self):
+        """
+        Resolve ContentTypes lazily (SAFE: only call this after startup)
+        """
+        return [
+            ContentType.objects.get_for_model(model)
+            for model in self._registry
+        ]
 
 @dataclass(frozen=True)
 class BaseItemTypeDefinition:
