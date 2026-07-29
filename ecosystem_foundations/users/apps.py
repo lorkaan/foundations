@@ -5,8 +5,8 @@ class UsersConfig(AppConfig):
     name = 'foundations.ecosystem_foundations.users'
 
     def ready(self):
-        from .registry import user_role_registry
+        from ..users.registry import USER_ROLE_REGISTRY
         from .services.role_sync import sync_roles
 
         sync_roles()
-        user_role_registry.lock()
+        USER_ROLE_REGISTRY.lock()
