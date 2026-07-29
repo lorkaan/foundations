@@ -1,7 +1,7 @@
 from django.db import models
 import pghistory
 
-from base.models import BaseItemType, BaseUuidPrimaryKeyModel, OptionalGenericUuidTargetMixin
+from ..base.models import BaseItemType, BaseUuidPrimaryKeyModel, OptionalGenericUuidTargetMixin
 
 # Create your models here.
 class SignalItemType(BaseItemType):
