@@ -117,7 +117,9 @@ class BaseItemType(ActiveMixin, BaseIsSystemMixin):
     class Meta:
         abstract = True
         indexes = [
-            models.Index(fields=["is_active", "code"]),
+            models.Index(fields=["is_active", "code"],
+                        name="%(app_label)s_%(class)s_active_code_idx"
+            )
         ]
         constraints = [
             models.UniqueConstraint(
@@ -304,7 +306,8 @@ class GenericPointerToClassMixin(models.Model):
     class Meta:
         abstract = True
         indexes = [
-            models.Index(fields=["content_type"]),
+            models.Index(fields=["content_type"],
+                         name="%(app_label)s_%(class)s_contenty_type_idx"),
         ]
 
     # ---------- Shared Helper Function ------------
