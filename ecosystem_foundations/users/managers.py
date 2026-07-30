@@ -1,8 +1,10 @@
 from django.contrib.auth.models import BaseUserManager
 from django.core.exceptions import ObjectDoesNotExist
 
+from ..base.models import ActiveManager
 
-class UserManager(BaseUserManager):
+
+class UserManager(ActiveManager, BaseUserManager):
 
     def _resolve_role(self, role_input):
         """
