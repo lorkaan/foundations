@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.contenttypes.models import ContentType
 
 from .flags import PermissionFlag
 
@@ -83,3 +84,7 @@ class UserFieldPermissionAdmin(admin.ModelAdmin):
         return format_flags(obj)
 
     flags.short_description = "Flags"
+
+@admin.register(ContentType)
+class ContentTypeAdmin(admin.ModelAdmin):
+    search_fields = ["app_label", "model"]
