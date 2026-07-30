@@ -21,7 +21,7 @@ class BaseValue(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
     parameter = models.OneToOneField(
         "GlobalParameter",
         on_delete=models.CASCADE,
-        related_name="value_obj",
+        related_name="%(app_label)s_%(class)s_value_obj",
     )
 
     class Meta:
