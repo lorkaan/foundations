@@ -1,3 +1,4 @@
+import hashlib
 import numbers
 import uuid
 
@@ -11,6 +12,44 @@ from django.core.validators import MinLengthValidator
 from .registry import NOTABLE_MODELS_REGISTRY
 
 # Create your models here.
+
+"""
+This is handling the Index names since django has a hard limit of 30 characters
+"""
+class IndexedModel(models.Model):
+    INDEX_FIELDS = []  # subclasses define this
+
+    class Meta:
+        abstract = True
+
+    @staticmethod
+    def _safe_name(base: str, max_len=30):
+        if len(base) <= max_len:
+            return base
+        h = hashlib.md5(base.encode()).hexdigest()[:6]
+        return f"{base[:max_len - 7]}_{h}"
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        if cls._meta.abstract:
+            return
+
+        indexes = []
+
+        for fields in getattr(cls, "INDEX_FIELDS", []):
+            suffix = "_".join(fields)
+            base = f"{cls._meta.app_label}_{cls._meta.model_name}_{suffix}"
+
+            indexes.append(
+                models.Index(
+                    fields=fields,
+                    name=cls._safe_name(base),
+                )
+            )
+
+        # Merge with any explicitly defined indexes
+        cls._meta.indexes = list(cls._meta.indexes) + indexes
 
 """
     UUID Primary Key Base Model. Used for things that need tracking.
@@ -110,17 +149,14 @@ class BaseIsSystemMixin(models.Model):
         super().delete(*args, **kwargs)
 
 
-class BaseItemType(ActiveMixin, BaseIsSystemMixin):
+class BaseItemType(ActiveMixin, BaseIsSystemMixin, IndexedModel):
+    INDEX_FIELDS = ["is_active", "code"]
+
     name = models.CharField(max_length=100, db_index=True)
     code = models.CharField(max_length=100)
 
     class Meta:
         abstract = True
-        indexes = [
-            models.Index(fields=["is_active", "code"],
-                        name="%(app_label)s_%(class)s_active_code_idx"
-            )
-        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["code"],
@@ -296,7 +332,9 @@ class OptionalGenericIntTargetMixin(BaseOptionalGenericTargetMixin):
 
     This allows dynamic, pluggable behavior based on model types.
 """  
-class GenericPointerToClassMixin(models.Model):
+class GenericPointerToClassMixin(IndexedModel, models.Model):
+
+    INDEX_FIELDS = ["content_type"]
 
     content_type = models.ForeignKey(
         ContentType,
@@ -305,10 +343,6 @@ class GenericPointerToClassMixin(models.Model):
 
     class Meta:
         abstract = True
-        indexes = [
-            models.Index(fields=["content_type"],
-                         name="%(app_label)s_%(class)s_contenty_type_idx"),
-        ]
 
     # ---------- Shared Helper Function ------------
 
