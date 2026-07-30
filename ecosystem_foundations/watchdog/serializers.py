@@ -1,5 +1,5 @@
-from ecosystem_foundations.base.serializers import ActiveSerializerMixin, BaseItemTypeSerializerMixin, TimeAuditableSerializerMixin
-from ecosystem_foundations.watchdog.models import Signal, SignalItemType
+from ..base.serializers import ActiveSerializerMixin, BaseItemTypeSerializerMixin, TimeAuditableSerializerMixin
+from .models import Signal, SignalItemType
 from rest_framework import serializers
 
 class SignalItemTypeSerializer(
