@@ -1,5 +1,5 @@
 from copy import deepcopy
-from globalparams.models import GlobalParameter
+from ...globalparams.models import GlobalParameter
 from ..dict_utils import dictToStr, isDict
 from ..type_utils import isString
 import logging
