@@ -3,11 +3,33 @@
 from django.db import migrations
 
 
+def create_admin_role(apps, schema_editor):
+    UserRole = apps.get_model("users", "UserRole")
+
+    UserRole.objects.update_or_create(
+        code="admin",
+        defaults={
+            "name": "Administrator",
+            "is_system": True,
+        },
+    )
+
+
+def remove_admin_role(apps, schema_editor):
+    UserRole = apps.get_model("users", "UserRole")
+
+    UserRole.objects.filter(code="admin").delete()
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('users', '0001_initial'),
+        ("users", "0001_initial"),  
     ]
 
     operations = [
+        migrations.RunPython(create_admin_role, remove_admin_role),
     ]
+
+
+
