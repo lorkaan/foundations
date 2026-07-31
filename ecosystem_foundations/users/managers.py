@@ -60,7 +60,7 @@ class UserManager(ActiveManager, BaseUserManager):
 
         user  = self.create_user(username, password, **extra_fields)
 
-        if user.role.key != "admin":
+        if user.role.code != "admin":
             raise ValueError("Superuser must have admin role")
 
         return user
