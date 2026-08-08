@@ -1,6 +1,9 @@
 from django.shortcuts import render
 from django.contrib.contenttypes.models import ContentType
 from .constants import ActiveState, ComparisonOperator, SystemState
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import serializers
 
 # Create your views here.
 
@@ -266,3 +269,259 @@ class ForeignKeyFilterMixin(BaseQueryViewSetMixin):
             queryset = queryset.filter(**{f"{self.fk_field}_id": value})
 
         return queryset
+
+"""
+    A Mixin in Schema to expose the Fliter Schema for any given data viewset.
+
+    This will allow the frontend to dynamically build UIs for filtering on a single
+    viewset. This is very different from the Stored Query app that enables much more
+    advanced querying and is useful for a Dashboard. This is designed for specific 
+    pages that seek to isolate a specific data model and perform basic queries over that
+    model, such as an Events page.
+"""
+class FilterSchemaMixin:
+    """
+    Mixin to expose filter schema for a ViewSet.
+
+    Uses:
+    - serializer → field typing
+    - filterset_fields → what is filterable
+    """
+
+    RELATION_OPTION_CONFIG = {
+        # model_name: (value_field, label_field)
+        # "EventScheduleItemType": ("id", "name"),
+    }
+
+    LOOKUP_META = {
+        "exact": {
+            "label": "equals",
+            "operator": "=",
+        },
+        "gte": {
+            "label": "after",
+            "operator": ">=",
+        },
+        "lte": {
+            "label": "before",
+            "operator": "<=",
+        },
+        "icontains": {
+            "label": "contains",
+            "operator": "like",
+        },
+    }
+
+    FILTER_TYPE_MAP = {
+        serializers.CharField: "string",
+        serializers.TextField: "string",
+        serializers.IntegerField: "number",
+        serializers.FloatField: "number",
+        serializers.BooleanField: "boolean",
+        serializers.DateField: "date",
+        serializers.DateTimeField: "datetime",
+        serializers.UUIDField: "uuid",
+    }
+
+    MAX_INLINE_OPTIONS = 50
+
+    def _get_lookup_meta(self, lookup):
+        return self.LOOKUP_META.get(lookup, {
+            "label": lookup,
+            "operator": lookup,
+        })
+
+    def _get_relation_config(self, model):
+        """
+        Determine which fields to use for value/label
+        """
+
+        config = getattr(self, "RELATION_OPTION_CONFIG", {})
+
+        if model.__name__ in config:
+            return config[model.__name__]
+
+        # ---- Smart defaults ----
+
+        field_names = {f.name for f in model._meta.fields}
+
+        # value priority
+        if "id" in field_names:
+            value_field = "id"
+        elif "pk" in field_names:
+            value_field = "pk"
+        elif "code" in field_names:
+            value_field = "code"
+        else:
+            value_field = next(iter(field_names))
+
+        # label priority
+        for candidate in ["name", "title", "label", "code"]:
+            if candidate in field_names:
+                label_field = candidate
+                break
+        else:
+            label_field = value_field
+
+        return value_field, label_field
+
+    def _get_relation_options(self, model):
+        """
+        Return dropdown options if dataset is small enough
+        """
+        qs = model.objects.all()
+
+        if qs[:self.MAX_INLINE_OPTIONS + 1].count() > self.MAX_INLINE_OPTIONS:
+            return None
+
+        value_field, label_field = self._get_relation_config(model)
+
+        results = []
+
+        for obj in qs:
+            results.append({
+                "value": getattr(obj, value_field, None),
+                "label": getattr(obj, label_field, str(obj)),
+            })
+
+        return results
+
+    def _get_filterset_fields(self):
+        """
+        Normalize filterset_fields into dict form:
+        {
+            "field": ["exact", "gte"]
+        }
+        """
+        fields = getattr(self, "filterset_fields", {})
+
+        if isinstance(fields, list):
+            return {f: ["exact"] for f in fields}
+
+        return fields
+
+    def _expand_filters(self, filterset_fields):
+        """
+        Expand into:
+        [
+            ("type", "exact", "type"),
+            ("start_time", "gte", "start_time__gte"),
+        ]
+        """
+        expanded = []
+
+        for field, lookups in filterset_fields.items():
+            for lookup in lookups:
+                name = field if lookup == "exact" else f"{field}__{lookup}"
+                expanded.append((field, lookup, name))
+
+        return expanded
+
+    def _get_serializer_field(self, serializer, field_name):
+        """
+        Get top-level serializer field
+        """
+        return serializer.fields.get(field_name)
+
+    def _resolve_relation_model(self, field):
+        """
+        Determine related model if this is a relation
+        """
+        # Nested serializer
+        if isinstance(field, serializers.BaseSerializer):
+            meta = getattr(field, "Meta", None)
+            return getattr(meta, "model", None)
+
+        # PK or Slug related field
+        if hasattr(field, "queryset") and field.queryset is not None:
+            return field.queryset.model
+
+        return None
+
+    def _map_field_type(self, field, model=None, sub_field=None):
+        """
+        Determine UI type
+        """
+        # Relation
+        if isinstance(field, serializers.BaseSerializer):
+            return "relation"
+
+        if hasattr(field, "queryset"):
+            return "relation"
+
+        # Primitive types
+        for cls, label in self.FILTER_TYPE_MAP.items():
+            if isinstance(field, cls):
+                return label
+
+        # Fallback
+        return "string"
+
+    def _build_field_schema(self, serializer, base_field, lookup, name):
+        """
+        Build schema for a single filter field
+        """
+        parts = base_field.split("__")
+        root_field_name = parts[0]
+
+        field = self._get_serializer_field(serializer, root_field_name)
+
+        if not field:
+            return None
+
+        lookup_meta = self._get_lookup_meta(lookup)
+        schema = {
+            "name": name,
+            "base": base_field,
+            "lookup": lookup,
+            "lookup_label": lookup_meta["label"],
+            "operator": lookup_meta["operator"],
+        }
+
+        # Detect relation
+        model = self._resolve_relation_model(field)
+
+        if model:
+            options = self._get_relation_options(model)
+
+            schema.update({
+                "type": "relation",
+                "model": model.__name__,
+                "endpoint": f"/{model._meta.model_name}s/",
+                "has_inline_options": options is not None,
+            })
+
+            # Only include options if they exist
+            if options is not None:
+                schema["options"] = options
+
+            # Handle traversal (type__code)
+            if len(parts) > 1:
+                sub_field = parts[1]
+                try:
+                    model_field = model._meta.get_field(sub_field)
+                    schema["sub_type"] = model_field.get_internal_type()
+                except Exception:
+                    schema["sub_type"] = "unknown"
+
+        else:
+            schema["type"] = self._map_field_type(field)
+
+        return schema
+
+    @action(detail=False, methods=["get"], url_path="filter-schema")
+    def filter_schema(self, request):
+        serializer = self.get_serializer()
+        filterset_fields = self._get_filterset_fields()
+        expanded = self._expand_filters(filterset_fields)
+
+        fields = []
+
+        for base, lookup, name in expanded:
+            schema = self._build_field_schema(serializer, base, lookup, name)
+            if schema:
+                fields.append(schema)
+
+        return Response({
+            "filters": fields
+        })
