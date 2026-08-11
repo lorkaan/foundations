@@ -2,6 +2,8 @@ from ..base.serializers import ActiveSerializerMixin, GenericTargetField, TimeAu
 from .models import User, UserAssignment, UserRole
 from rest_framework import serializers
 
+
+
 class UserRoleSerializer(
     ActiveSerializerMixin,
     TimeAuditableSerializerMixin,

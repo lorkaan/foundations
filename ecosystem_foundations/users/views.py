@@ -1,10 +1,14 @@
 from django.shortcuts import render
+
 from .models import User, UserAssignment, UserRole
 from .serializers import UserAssignmentSerializer, UserRoleSerializer, UserSerializer
 from rest_framework import viewsets
 from ..base.views import ActiveQuerysetMixin, BaseItemTypeQueryViewSetMixin, BaseQueryViewSetMixin, ForeignKeyFilterMixin, GenericTargetQuerysetMixin, TimeAuditableQuerysetMixin
 
+
 # Create your views here.
+
+
 
 class UserQuerysetMixin(BaseQueryViewSetMixin):
 

@@ -6,6 +6,13 @@ from ..users.models import User, UserRole
 from ..users.serializers import UserRoleSerializer, UserSerializer
 from rest_framework import serializers
 
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+    )
+
 class RoleFieldPermissionSerializer(serializers.ModelSerializer):
     # -------------------------
     # Role (read/write split)
