@@ -314,7 +314,6 @@ class FilterSchemaMixin:
 
     FILTER_TYPE_MAP = {
         serializers.CharField: "string",
-        serializers.TextField: "string",
         serializers.IntegerField: "number",
         serializers.FloatField: "number",
         serializers.BooleanField: "boolean",
