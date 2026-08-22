@@ -22,4 +22,4 @@ urlpatterns = [
     path("auth/me/", MeView.as_view(), name="iam-auth-me"),
 ]
 
-urlpatterns = router.urls
+urlpatterns += router.urls
