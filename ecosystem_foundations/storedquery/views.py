@@ -62,13 +62,16 @@ class SavedQueryViewSet(
     BaseQueryViewSetMixin,
     viewsets.ModelViewSet,
 ):
+    """
     queryset = SavedQuery.objects.select_related(
         "owner",
         "content_type",
     ).prefetch_related(
         "permissions__user",
         "permissions__role",
-    )
+    )"""
+
+    queryset = SavedQuery.objects.all()
 
     serializer_class = SavedQuerySerializer
 
