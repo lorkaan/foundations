@@ -78,6 +78,10 @@ class BaseImportCommand(BaseCommand):
     def handle(self, *args, **options):
         file_path = Path(options["file"])
 
+        base_dir = settings.CONFIG_FOLDER_PATH
+        if not file_path.is_absolute():
+            file_path =  os.path.join(base_dir, file_path)
+
         if not file_path.exists():
             raise CommandError("File not found")
 
