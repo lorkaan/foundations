@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import FormType, FormQuestion, FormInstance, FormAnswer
+from .models import FormType, FormQuestion, FormInstance, FormAnswer, FieldType
 from .services import validate_answer, get_dynamic_options
 
 
@@ -19,10 +19,10 @@ class FormQuestionSerializer(serializers.ModelSerializer):
         ]
 
     def get_options(self, obj):
-        if obj.field_type == "enum":
+        if obj.field_type == FieldType.ENUM:
             return obj.schema.get("choices", [])
 
-        if obj.field_type == "dynamic":
+        if obj.field_type == FieldType.DYNAMIC:
             source = obj.schema.get("source")
             return get_dynamic_options(source)
 

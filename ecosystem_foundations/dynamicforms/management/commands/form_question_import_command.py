@@ -1,5 +1,3 @@
-import json
-
 from django.core.management.base import CommandError
 
 from ....base.management.commands.base_import_command import BaseImportCommand
