@@ -60,7 +60,7 @@ class BaseImportCommand(BaseCommand):
         path = Path(filename)
 
         if not path.is_absolute():
-            path =  os.path.join(base_dir, filename)
+            path =  Path(os.path.join(base_dir, filename))
 
         if not path.exists():
             raise CommandError(f"Schema file not found: {path}")
@@ -80,7 +80,7 @@ class BaseImportCommand(BaseCommand):
 
         base_dir = settings.CONFIG_FOLDER_PATH
         if not file_path.is_absolute():
-            file_path =  os.path.join(base_dir, file_path)
+            file_path =  Path(os.path.join(base_dir, file_path))
 
         if not file_path.exists():
             raise CommandError("File not found")
@@ -98,7 +98,7 @@ class BaseImportCommand(BaseCommand):
             except Exception as e:
                 raise CommandError(f"Row {index + 2}: {e}")
 
-        self.stdout.write(self.style.SUCCESS("Import complete"))
+        self.stdout.write(self.style.SUCCESS(f"Import complete: {self.__class__.__name__}"))
 
     # -----------------------------
     # File loading
