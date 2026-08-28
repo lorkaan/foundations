@@ -1,5 +1,5 @@
 
-from ...base.management.commands.base_import_command import BaseImportCommand
+from ....base.management.commands.base_import_command import BaseImportCommand
 
 from ...models import FormType
 
