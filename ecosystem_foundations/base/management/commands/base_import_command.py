@@ -17,6 +17,8 @@ class BaseImportCommand(BaseCommand):
 
     help = "Base importer"
 
+    name="Base"
+
     @classmethod
     def to_int(cls, v, default=0, validator=None):
         try:
@@ -98,7 +100,7 @@ class BaseImportCommand(BaseCommand):
             except Exception as e:
                 raise CommandError(f"Row {index + 2}: {e}")
 
-        self.stdout.write(self.style.SUCCESS(f"Import complete: {self.__class__.__name__}"))
+        self.stdout.write(self.style.SUCCESS(f"Import complete: {self.__class__.name}"))
 
     # -----------------------------
     # File loading

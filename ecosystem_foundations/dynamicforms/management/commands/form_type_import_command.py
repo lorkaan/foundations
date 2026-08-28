@@ -8,6 +8,8 @@ class Command(BaseImportCommand):
 
     help = "Import Form Types"
 
+    name="Form Types"
+
     # -----------------------------
     def get_required_columns(self):
         return {

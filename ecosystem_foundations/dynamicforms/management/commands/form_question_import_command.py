@@ -9,6 +9,8 @@ class Command(BaseImportCommand):
 
     help = "Import Form Questions"
 
+    name="Form Question"
+
     # -----------------------------
     def get_required_columns(self):
         return {
