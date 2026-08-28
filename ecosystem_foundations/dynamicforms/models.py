@@ -32,7 +32,7 @@ class FormType(TimeAuditableMixin, ActiveMixin, BaseUuidPrimaryKeyModel):
         constraints = [
             # name must not be empty string
             models.CheckConstraint(
-                check=~models.Q(name=""),
+                condition=~models.Q(name=""),
                 name="formtype_name_not_empty",
             ),
 
