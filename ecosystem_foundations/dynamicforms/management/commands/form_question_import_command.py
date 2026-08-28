@@ -2,9 +2,9 @@ import json
 
 from django.core.management.base import CommandError
 
-from ...base.management.base_import_command import BaseImportCommand
+from ....base.management.commands.base_import_command import BaseImportCommand
 
-from ..models import FormType, FormQuestion, FieldType
+from ...models import FormType, FormQuestion, FieldType
 
 
 class Command(BaseImportCommand):
@@ -23,27 +23,13 @@ class Command(BaseImportCommand):
     # -----------------------------
     def process_row(self, row):
 
-        def to_int(v, default=1):
-            try:
-                return int(float(v))
-            except Exception:
-                return default
-
-        def to_bool(v):
-            return str(v).lower() in ("1", "true", "yes", "y")
-
-        def parse_json(v):
-            if not v:
-                return {}
-            return json.loads(v)
-
         # -------------------------
         # FormType (MUST EXIST)
         # -------------------------
         try:
             form_type = FormType.objects.get(
                 code=row["form_code"],
-                version=to_int(row.get("version", 1)),
+                version=self.__class__.to_int(row.get("version", 1), 1, validator=lambda x: x > 0),
             )
         except FormType.DoesNotExist:
             raise CommandError(
@@ -64,8 +50,8 @@ class Command(BaseImportCommand):
             label=row["question_label"],
             defaults={
                 "field_type": field_type,
-                "required": to_bool(row.get("required")),
-                "order": to_int(row.get("order", 1)),
-                "schema": parse_json(row.get("schema")),
+                "required": self.__class__.to_bool(row.get("required", False), default=False),
+                "order": self.__class__.to_int(row.get("order", 1)),
+                "schema": self.load_schema(row.get("schema")),
             }
         )

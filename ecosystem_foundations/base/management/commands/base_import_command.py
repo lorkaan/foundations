@@ -1,9 +1,11 @@
 from pathlib import Path
 import pandas as pd
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-
+import os
+import json
 
 class BaseImportCommand(BaseCommand):
     """
@@ -15,11 +17,59 @@ class BaseImportCommand(BaseCommand):
 
     help = "Base importer"
 
+    @classmethod
+    def to_int(cls, v, default=0, validator=None):
+        try:
+            val = int(float(v))
+        except Exception:
+            val = default
+        finally:
+            if callable(validator):
+                val = validator(val)
+        return val
+
+    @classmethod
+    def to_bool(cls, v, default=False):
+        val = str(v)
+        if len(val):
+            return str(v).lower() in ("1", "true", "yes", "y")
+        else:
+            return default
+
+    @classmethod
+    def parse_json(cls, v):
+        if not v:
+            return {}
+        return json.loads(v)
+
     # -----------------------------
     # CLI args
     # -----------------------------
     def add_arguments(self, parser):
         parser.add_argument("file", type=str)
+
+    # -----------------------------
+    # Schema loader (PUT IT HERE 👇)
+    # -----------------------------
+    def load_schema(self, filename: str) -> dict:
+        if not filename:
+            return {}
+
+        base_dir = settings.CONFIG_JSON_PATH
+
+        path = Path(filename)
+
+        if not path.is_absolute():
+            path =  os.path.join(base_dir, filename)
+
+        if not path.exists():
+            raise CommandError(f"Schema file not found: {path}")
+
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            raise CommandError(f"Invalid JSON in {path}: {e}")
 
     # -----------------------------
     # Entry point

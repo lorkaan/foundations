@@ -14,9 +14,11 @@ class FieldType(models.TextChoices):
         TEXT = "T", "Text"
         NUMBER = "N", "Number"
         DATE = "D", "Date"
-        DATE_RANGE = "R", "Date Range"
+        DATE_RANGE = "DR", "Date Range"
         ENUM = "E", "Enum"
         DYNAMIC = "S", "Dynamic Select"
+        DATETIME = "DT", "DateTime"
+        DATETIME_RANGE = "DTR", "DateTime Range"
 
 # Create your models here.
 class FormType(TimeAuditableMixin, ActiveMixin, BaseUuidPrimaryKeyModel):
@@ -49,7 +51,7 @@ class FormQuestion(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
         on_delete=models.CASCADE
     )
 
-    field_type = models.CharField(max_length=1, choices=FieldType)
+    field_type = models.CharField(max_length=3, choices=FieldType)
 
     required = models.BooleanField(default=False)
     order = models.PositiveIntegerField(default=0)
