@@ -113,7 +113,7 @@ class BaseImportCommand(BaseCommand):
             elif suffix in (".xls", ".xlsx"):
                 return pd.read_excel(path)
 
-            elif suffix == ".odf":
+            elif suffix == ".ods":
                 return pd.read_excel(path, engine="odf")
 
             else:
