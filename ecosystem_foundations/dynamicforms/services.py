@@ -115,7 +115,7 @@ def get_dynamic_options(source_name):
         raise ValidationError(f"Invalid data source: {source_name}")
 
     return [
-        {"label": str(obj), "value": getattr(obj, "id")}
+        {"label": getattr(obj, "name"), "value": getattr(obj, "id")}
         for obj in qs
     ]
 
