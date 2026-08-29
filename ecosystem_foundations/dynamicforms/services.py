@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from ..base.models import BaseItemType
+
 from .registry import VALIDATOR_REGISTRY, DATA_SOURCE_REGISTRY
 
 def validate_answer(question, value):
@@ -102,7 +104,7 @@ def get_dynamic_options(source_name):
     # -------------------------
     # Case 1: Model registered
     # -------------------------
-    if isinstance(source, type) and issubclass(source, models.Model):
+    if isinstance(source, type) and issubclass(source, BaseItemType):
         qs = source.objects.all()
 
     # -------------------------
