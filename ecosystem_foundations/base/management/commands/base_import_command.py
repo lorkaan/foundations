@@ -85,7 +85,7 @@ class BaseImportCommand(BaseCommand):
             file_path =  Path(os.path.join(base_dir, file_path))
 
         if not file_path.exists():
-            raise CommandError("File not found")
+            raise CommandError(f"File not found: {file_path}")
 
         df = self.load_file(file_path)
         df = self.normalize_dataframe(df)
