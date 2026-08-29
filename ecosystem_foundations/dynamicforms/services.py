@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.db import models
 
 from .registry import VALIDATOR_REGISTRY, DATA_SOURCE_REGISTRY
 
@@ -93,12 +94,25 @@ def validate_enum(question, value, schema):
 # ---------------------------------------------------------
 
 def get_dynamic_options(source_name):
-    source_fn = DATA_SOURCE_REGISTRY.get(source_name)
+    source = DATA_SOURCE_REGISTRY.get(source_name)
 
-    if not source_fn:
+    if not source:
         raise ValidationError(f"Unknown data source: {source_name}")
 
-    qs = source_fn()
+    # -------------------------
+    # Case 1: Model registered
+    # -------------------------
+    if isinstance(source, type) and issubclass(source, models.Model):
+        qs = source.objects.all()
+
+    # -------------------------
+    # Case 2: Callable registered
+    # -------------------------
+    elif callable(source):
+        qs = source()
+
+    else:
+        raise ValidationError(f"Invalid data source: {source_name}")
 
     return [
         {"label": str(obj), "value": getattr(obj, "id")}
