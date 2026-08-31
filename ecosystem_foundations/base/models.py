@@ -165,6 +165,16 @@ class BaseItemType(ActiveMixin, BaseIsSystemMixin, IndexedModel):
         ]
 
 """
+    This class represents a mixin for adding a conditional to a model in the form of JSON in order to
+    keep the conditional generic and locally applicable while still enabling the conditions at multiple levels
+"""
+class ConditionalMixin(models.Model):
+    condition = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        abstract = True
+
+"""
     Soft Delete functionality allowed to perform quick actions and delete data later.
 """
 class SoftDeleteMixin(models.Model):

@@ -3,7 +3,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 
-from ..base.models import ActiveMixin, BaseUuidPrimaryKeyModel, TimeAuditableMixin
+from ..base.models import ActiveMixin, BaseItemType, BaseUuidPrimaryKeyModel, ConditionalMixin, TimeAuditableMixin
 
 class FormInstanceStatus(models.TextChoices):
     DRAFT = "D", "Draft"
@@ -43,15 +43,47 @@ class FormType(TimeAuditableMixin, ActiveMixin, BaseUuidPrimaryKeyModel):
             ),
         ]
 
-class FormQuestion(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
+class FormGroup(ConditionalMixin, BaseItemType, TimeAuditableMixin, BaseUuidPrimaryKeyModel):
+    form_type = models.ForeignKey(FormType, on_delete=models.CASCADE, related_name="groups")
+
+    repeatable = models.BooleanField(default=False)
+
+    loop_config = models.JSONField(null=True, blank=True)   # Just a little extra in case of limiting loops, null means arbitrary loops
+
+    order = models.PositiveIntegerField(default=0)
+
+    def clean(self):
+        if not self.repeatable and self.loop_config:
+            raise ValidationError("Non-repeatable groups cannot define loop_config")
+
+        if self.repeatable and self.loop_config:
+            if not isinstance(self.loop_config, dict):
+                raise ValidationError("loop_config must be an object")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  # ensure clean() is always enforced
+        super().save(*args, **kwargs)
+
+    class Meta:
+        ordering = ["order"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["form_type", "order"],
+                name="unique_group_order_per_form"
+            )
+        ]
+
+class FormQuestion(ConditionalMixin, TimeAuditableMixin, BaseUuidPrimaryKeyModel):
     label = models.CharField(max_length=255)
-    form_type = models.ForeignKey(
-        FormType,
+    form_group = models.ForeignKey(
+        FormGroup,
         related_name="questions",
         on_delete=models.CASCADE
     )
 
     field_type = models.CharField(max_length=3, choices=FieldType)
+
+    code = models.CharField(max_length=100) # Useful just for identifying the question
 
     required = models.BooleanField(default=False)
     order = models.PositiveIntegerField(default=0)
@@ -64,15 +96,19 @@ class FormQuestion(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
         constraints = [
             # Prevent duplicate labels in same form
             models.UniqueConstraint(
-                fields=["form_type", "label"],
-                name="unique_question_label_per_form"
+                fields=["form_group", "label"],
+                name="unique_question_label_per_group"
             ),
 
             # Prevent duplicate ordering collisions
             models.UniqueConstraint(
-                fields=["form_type", "order"],
-                name="unique_question_order_per_form"
+                fields=["form_group", "order"],
+                name="unique_question_order_per_group"
             ),
+            models.UniqueConstraint(
+                fields=["form_group", "code"],
+                name="unique_question_code_per_group"
+            )
         ]
 
     def __str__(self):
