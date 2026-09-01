@@ -175,6 +175,32 @@ class ConditionalMixin(models.Model):
         abstract = True
 
 """
+    Mostly used for Dynamic Forms, but abstracted because it could have other uses than just FormGroup and FormSection
+"""
+class RepeatableOrderedMixin(ConditionalMixin, BaseItemType, TimeAuditableMixin):
+    repeatable = models.BooleanField(default=False) # Says if repeatable
+
+    loop_config = models.JSONField(null=True, blank=True) # states the conditions of repeatable, null = infinite repeatable
+
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        abstract = True
+        ordering = ["order"]
+
+    def clean(self):
+        if not self.repeatable and self.loop_config:
+            raise ValidationError("Non-repeatable items cannot define loop_config")
+
+        if self.repeatable and self.loop_config:
+            if not isinstance(self.loop_config, dict):
+                raise ValidationError("loop_config must be an object")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+"""
     Soft Delete functionality allowed to perform quick actions and delete data later.
 """
 class SoftDeleteMixin(models.Model):

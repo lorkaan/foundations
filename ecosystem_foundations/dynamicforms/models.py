@@ -3,7 +3,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 
-from ..base.models import ActiveMixin, BaseItemType, BaseUuidPrimaryKeyModel, ConditionalMixin, TimeAuditableMixin
+from ..base.models import ActiveMixin, BaseItemType, BaseUuidPrimaryKeyModel, ConditionalMixin, RepeatableOrderedMixin, TimeAuditableMixin
 
 class FormInstanceStatus(models.TextChoices):
     DRAFT = "D", "Draft"
@@ -43,33 +43,25 @@ class FormType(TimeAuditableMixin, ActiveMixin, BaseUuidPrimaryKeyModel):
             ),
         ]
 
-class FormGroup(ConditionalMixin, BaseItemType, TimeAuditableMixin, BaseUuidPrimaryKeyModel):
-    form_type = models.ForeignKey(FormType, on_delete=models.CASCADE, related_name="groups")
+class FormSection(RepeatableOrderedMixin, BaseUuidPrimaryKeyModel):
+    form_type = models.ForeignKey(FormType, on_delete=models.CASCADE, related_name="sections")
 
-    repeatable = models.BooleanField(default=False)
-
-    loop_config = models.JSONField(null=True, blank=True)   # Just a little extra in case of limiting loops, null means arbitrary loops
-
-    order = models.PositiveIntegerField(default=0)
-
-    def clean(self):
-        if not self.repeatable and self.loop_config:
-            raise ValidationError("Non-repeatable groups cannot define loop_config")
-
-        if self.repeatable and self.loop_config:
-            if not isinstance(self.loop_config, dict):
-                raise ValidationError("loop_config must be an object")
-
-    def save(self, *args, **kwargs):
-        self.full_clean()  # ensure clean() is always enforced
-        super().save(*args, **kwargs)
-
-    class Meta:
-        ordering = ["order"]
+    class Meta(RepeatableOrderedMixin.Meta):
         constraints = [
             models.UniqueConstraint(
                 fields=["form_type", "order"],
                 name="unique_group_order_per_form"
+            )
+        ]
+
+class FormGroup(RepeatableOrderedMixin, BaseUuidPrimaryKeyModel):
+    form_section = models.ForeignKey(FormSection, on_delete=models.CASCADE, related_name="groups")
+
+    class  Meta(RepeatableOrderedMixin.Meta):
+        constraints = [
+            models.UniqueConstraint(
+                fields=["form_section", "order"],
+                name="unique_group_order_per_section"
             )
         ]
 
