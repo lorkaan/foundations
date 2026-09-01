@@ -146,3 +146,10 @@ def validate_dynamic(question, value, schema):
 
         if value["value"] not in valid_values:
             raise ValidationError("Invalid selection")
+
+"""
+    Conversion from Form Instance and Form Answers into other Models
+"""
+class FormMapper:
+
+    pass

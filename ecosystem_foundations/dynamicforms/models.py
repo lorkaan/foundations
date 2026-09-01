@@ -148,3 +148,10 @@ class FormAnswer(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
 
     def __str__(self):
         return f"{self.question.label} -> {self.value}"
+
+"""
+    The Mapping from Instance and Answers into a model data
+"""
+class FormMapping(TimeAuditableMixin, ActiveMixin, BaseUuidPrimaryKeyModel):
+    form_type = models.ForeignKey(FormType, on_delete=models.CASCADE, related_name="mappings")
+    config = models.JSONField()
