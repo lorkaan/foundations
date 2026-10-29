@@ -3,7 +3,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 
-from ..base.models import ActiveMixin, BaseItemType, BaseUuidPrimaryKeyModel, ConditionalMixin, RepeatableOrderedMixin, TimeAuditableMixin
+from ..base.models import ActiveMixin, BaseItemType, BaseUuidPrimaryKeyModel, ConditionalMixin, MetadataMixin, RepeatableOrderedMixin, TimeAuditableMixin
 
 class FormInstanceStatus(models.TextChoices):
     DRAFT = "D", "Draft"
@@ -43,25 +43,73 @@ class FormType(TimeAuditableMixin, ActiveMixin, BaseUuidPrimaryKeyModel):
             ),
         ]
 
-class FormSection(RepeatableOrderedMixin, BaseUuidPrimaryKeyModel):
+class FormSection(BaseItemType, MetadataMixin, BaseUuidPrimaryKeyModel):
     form_type = models.ForeignKey(FormType, on_delete=models.CASCADE, related_name="sections")
 
-    class Meta(RepeatableOrderedMixin.Meta):
+    description = models.TextField(blank=True)
+
+    order = models.PositiveIntegerField(
+        default=0
+    )
+
+    class Meta(BaseItemType.Meta):
         constraints = [
             models.UniqueConstraint(
+                fields=["form_type", "code"],
+                name="unique_section_code_per_form_type"
+            ),
+            models.UniqueConstraint(
                 fields=["form_type", "order"],
-                name="unique_group_order_per_form"
+                name="unique_section_order_per_form_type"
             )
         ]
 
 class FormGroup(RepeatableOrderedMixin, BaseUuidPrimaryKeyModel):
     form_section = models.ForeignKey(FormSection, on_delete=models.CASCADE, related_name="groups")
 
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="children"
+    )
+
+    def clean(self):
+        super().clean()
+
+        if self.parent:
+            if self.parent.form_section_id != self.form_section_id:
+                raise ValidationError(
+                    "Parent group must belong to the same form section"
+                )
+        # Prevent self-reference
+        if self.parent_id and self.parent_id == self.id:
+            raise ValidationError("A group cannot be its own parent.")
+
+        # Prevent circular references
+        visited = set()
+        current = self.parent
+
+        while current:
+            if current.id == self.id:
+                raise ValidationError("Circular parent relationship detected.")
+
+            if current.id in visited:
+                break  # safety guard (shouldn't normally happen)
+
+            visited.add(current.id)
+            current = current.parent
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     class  Meta(RepeatableOrderedMixin.Meta):
         constraints = [
             models.UniqueConstraint(
-                fields=["form_section", "order"],
-                name="unique_group_order_per_section"
+                fields=["form_section", "parent", "order"],
+                name="unique_group_order_per_parent"
             )
         ]
 
@@ -124,9 +172,84 @@ class FormInstance(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
     def __str__(self):
         return f"Instance {self.id} - {self.form_type.name}"
 
-class FormAnswer(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
+class FormGroupInstance(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
     form_instance = models.ForeignKey(
         FormInstance,
+        on_delete=models.CASCADE,
+        related_name="group_instances"
+    )
+
+    group = models.ForeignKey(
+        FormGroup,
+        on_delete=models.CASCADE,
+        related_name="instances"
+    )
+
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="children"
+    )
+
+    def clean(self):
+        # --- 1. Parent must belong to same FormInstance ---
+        if self.parent:
+            if self.parent.form_instance_id != self.form_instance_id:
+                raise ValidationError(
+                    "Parent instance must belong to the same form instance."
+                )
+
+        # --- 2. Prevent self-reference ---
+        if self.parent_id and self.parent_id == self.id:
+            raise ValidationError("A group instance cannot be its own parent.")
+
+        # --- 3. Enforce structural consistency with FormGroup ---
+        if self.parent:
+            expected_parent_group = self.group.parent_id  # assumes FormGroup has parent
+
+            if expected_parent_group != self.parent.group_id:
+                raise ValidationError(
+                    "Parent instance does not match the group hierarchy."
+                )
+
+        # --- 4. Prevent circular references ---
+        visited = set()
+        current = self.parent
+
+        while current:
+            if current.id == self.id:
+                raise ValidationError("Circular parent relationship detected.")
+
+            if current.id in visited:
+                break  # safety guard
+
+            visited.add(current.id)
+            current = current.parent
+
+        # --- 5. Ensure same FormType (extra safety) ---
+        if self.group.form_section.form_type_id != self.form_instance.form_type_id:
+            raise ValidationError(
+                "Group does not belong to the same form type as the form instance."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["form_instance"]),
+            models.Index(fields=["parent"]),
+        ]
+
+    def __str__(self):
+        return f"{self.group_id} ({self.id})"
+
+class FormAnswer(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
+    group_instance = models.ForeignKey(
+        FormGroupInstance,
         related_name="answers",
         on_delete=models.CASCADE
     )
@@ -136,11 +259,23 @@ class FormAnswer(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
     value = models.JSONField()
 
     class Meta:
-        unique_together = ("form_instance", "question")
+        unique_together = ("group_instance", "question")
 
     def clean(self):
-        if self.question.form_type_id != self.form_instance.form_type_id:
-            raise ValidationError("Question does not belong to this form instance")
+        # --- 1. Ensure same FormType ---
+        if (
+            self.question.form_group.form_section.form_type_id
+            != self.group_instance.form_instance.form_type_id
+        ):
+            raise ValidationError(
+                "Question does not belong to this form instance."
+            )
+
+        # --- 2. Ensure question belongs to the correct group ---
+        if self.question.form_group_id != self.group_instance.group_id:
+            raise ValidationError(
+                "Question does not belong to this group instance."
+            )
 
     def save(self, *args, **kwargs):
         self.full_clean()  # ensure clean() is always enforced
@@ -149,9 +284,10 @@ class FormAnswer(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
     def __str__(self):
         return f"{self.question.label} -> {self.value}"
 
+
 """
     The Mapping from Instance and Answers into a model data
 """
-class FormMapping(TimeAuditableMixin, ActiveMixin, BaseUuidPrimaryKeyModel):
+class FormProcessingConfig(TimeAuditableMixin, BaseItemType, BaseUuidPrimaryKeyModel):
     form_type = models.ForeignKey(FormType, on_delete=models.CASCADE, related_name="mappings")
     config = models.JSONField()

@@ -3,9 +3,13 @@ from .services import validate_answer
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.core.exceptions import ValidationError
 
-from .models import FormInstanceStatus, FormType, FormInstance, FormQuestion
+from .models import FormGroupInstance, FormInstanceStatus, FormType, FormInstance, FormQuestion
 from .serializers import (
+    FormGroupInstanceSerializer,
+    FormGroupInstanceTreeSerializer,
+    FormGroupInstanceWriteSerializer,
     FormTypeSerializer,
     FormInstanceSerializer,
     FormQuestionSerializer,
@@ -14,7 +18,7 @@ from .services import get_dynamic_options
 
 
 class FormTypeViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = FormType.objects.prefetch_related("questions")
+    queryset = FormType.objects.prefetch_related("groups")
     serializer_class = FormTypeSerializer
 
     @action(detail=False, methods=["get"], url_path="latest")
@@ -35,7 +39,7 @@ class FormTypeViewSet(viewsets.ReadOnlyModelViewSet):
             FormType.objects
             .filter(code=code)
             .order_by("-version")
-            .prefetch_related("questions")
+            .prefetch_related("groups")
             .first()
         )
 
@@ -164,3 +168,89 @@ class FormQuestionViewSet(viewsets.ReadOnlyModelViewSet):
         options = get_dynamic_options(source)
 
         return Response(options)
+
+# Simple ViewSet for FormGroupInstance
+class FormGroupInstanceViewSet(viewsets.ModelViewSet):
+    serializer_class = FormGroupInstanceSerializer
+
+    def get_queryset(self):
+        queryset = (
+            FormGroupInstance.objects
+            .select_related(
+                "form_instance",
+                "group",
+                "parent",
+            )
+            .prefetch_related("answers")  # ✅ important
+        )
+
+        form_instance_id = self.request.query_params.get("form_instance")
+
+        if form_instance_id:
+            queryset = queryset.filter(form_instance_id=form_instance_id)
+
+        return queryset
+# Tree Instance View Set
+class FormGroupInstanceTreeViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = FormGroupInstanceTreeSerializer
+
+    def get_queryset(self):
+        queryset = (
+            FormGroupInstance.objects
+            .select_related("group", "parent")
+            .prefetch_related(
+                "answers",                          # root answers
+                "children",                         # level 1
+                "children__answers",                # level 1 answers
+                "children__children",               # level 2
+                "children__children__answers",      # level 2 answers
+            )
+        )
+
+        form_instance_id = self.request.query_params.get("form_instance")
+
+        if form_instance_id:
+            queryset = queryset.filter(form_instance_id=form_instance_id)
+
+        # Only root nodes
+        return queryset.filter(parent__isnull=True)
+
+# Write FormGroupInstance View Set
+class FormGroupInstanceWriteViewSet(viewsets.ModelViewSet):
+    serializer_class = FormGroupInstanceWriteSerializer
+
+    def get_queryset(self):
+        queryset = (
+            FormGroupInstance.objects
+            .select_related(
+                "form_instance",
+                "group",
+                "parent",
+            )
+        )
+
+        form_instance_id = self.request.query_params.get("form_instance")
+
+        if form_instance_id:
+            queryset = queryset.filter(form_instance_id=form_instance_id)
+
+        return queryset
+
+    def perform_create(self, serializer):
+        # ✅ let serializer + model clean() handle validation
+        serializer.save()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+
+        incoming_form_instance = self.request.data.get("form_instance")
+
+        if (
+            incoming_form_instance
+            and int(incoming_form_instance) != instance.form_instance_id
+        ):
+            raise ValidationError(
+                "Cannot change form_instance of an existing record"
+            )
+
+        serializer.save()

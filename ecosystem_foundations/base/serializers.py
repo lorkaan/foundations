@@ -197,6 +197,37 @@ class BaseItemTypeSerializerMixin(serializers.ModelSerializer):
 
         return super().update(instance, validated_data)
 
+class ConditionalSerializerMixin(serializers.ModelSerializer):
+    condition = serializers.JSONField(required=False, allow_null=True)
+
+    class Meta:
+        abstract = True
+
+class RepeatableOrderedSerializerMixin(ConditionalSerializerMixin, BaseItemTypeSerializerMixin, TimeAuditableSerializerMixin, serializers.ModelSerializer):
+    repeatable = serializers.BooleanField(required=False)
+    loop_config = serializers.JSONField(required=False, allow_null=True)
+    order = serializers.IntegerField(required=False)
+
+    class Meta:
+        abstract = True
+
+    def validate(self, attrs):
+        repeatable = attrs.get("repeatable", getattr(self.instance, "repeatable", False))
+        loop_config = attrs.get("loop_config", getattr(self.instance, "loop_config", None))
+
+        if not repeatable and loop_config:
+            raise serializers.ValidationError(
+                "Non-repeatable items cannot define loop_config"
+            )
+
+        if repeatable and loop_config is not None:
+            if not isinstance(loop_config, dict):
+                raise serializers.ValidationError(
+                    "loop_config must be an object"
+                )
+
+        return attrs
+
 class BaseRunSerializerMixin(
     TimeAuditableSerializerMixin,
     serializers.ModelSerializer

@@ -148,6 +148,13 @@ class BaseIsSystemMixin(models.Model):
             raise Exception("System types cannot be deleted")
         super().delete(*args, **kwargs)
 
+class MetadataMixin(models.Model):
+
+    metadata = models.JSONField()
+
+    class Meta:
+        abstract = True
+
 
 class BaseItemType(ActiveMixin, BaseIsSystemMixin, IndexedModel):
     INDEX_FIELDS = ["is_active", "code"]
