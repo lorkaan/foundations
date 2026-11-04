@@ -1,28 +1,51 @@
 from django.db import transaction
-from .services import validate_answer
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
-from django.core.exceptions import ValidationError
 
-from .models import FormGroupInstance, FormInstanceStatus, FormType, FormInstance, FormQuestion
+from .models import (
+    FormType,
+    FormInstance,
+    FormInstanceStatus,
+    FormGroupInstance,
+    FormQuestion,
+    FieldType,
+)
+
 from .serializers import (
-    FormGroupInstanceSerializer,
-    FormGroupInstanceTreeSerializer,
-    FormGroupInstanceWriteSerializer,
     FormTypeSerializer,
     FormInstanceSerializer,
     FormQuestionSerializer,
 )
-from .services import get_dynamic_options
 
+from .services import (
+    validate_answer,
+    get_dynamic_options,
+)
+
+
+# ============================================================
+# Form Type ViewSet
+# ============================================================
 
 class FormTypeViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = FormType.objects.prefetch_related("groups")
+
     serializer_class = FormTypeSerializer
 
-    @action(detail=False, methods=["get"], url_path="latest")
+    queryset = FormType.objects.prefetch_related(
+        "sections"
+    )
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="latest"
+    )
     def latest(self, request):
+
         """
         GET /form-types/latest/?code=kyc
         """
@@ -32,43 +55,72 @@ class FormTypeViewSet(viewsets.ReadOnlyModelViewSet):
         if not code:
             return Response(
                 {"detail": "code is required"},
-                status=400
+                status=status.HTTP_400_BAD_REQUEST
             )
 
         obj = (
             FormType.objects
             .filter(code=code)
             .order_by("-version")
-            .prefetch_related("groups")
+            .prefetch_related("sections")
             .first()
         )
 
         if not obj:
             return Response(
                 {"detail": "FormType not found"},
-                status=404
+                status=status.HTTP_404_NOT_FOUND
             )
 
         serializer = self.get_serializer(obj)
+
         return Response(serializer.data)
 
 
+# ============================================================
+# Form Instance ViewSet
+# ============================================================
+
 class FormInstanceViewSet(viewsets.ModelViewSet):
-    queryset = FormInstance.objects.prefetch_related(
-        "answers__question"
-    ).select_related("form_type")
+
     serializer_class = FormInstanceSerializer
 
-    # -------------------------
-    # CREATE (always draft)
-    # -------------------------
-    def perform_create(self, serializer):
-        serializer.save(status=FormInstanceStatus.DRAFT)
+    def get_queryset(self):
 
-    # -------------------------
-    # UPDATE (draft only)
-    # -------------------------
+        return (
+            FormInstance.objects
+            .select_related(
+                "form_type",
+                "submitted_by",
+            )
+            .prefetch_related(
+                "group_instances",
+                "group_instances__answers",
+                "group_instances__answers__question",
+            )
+        )
+
+    # --------------------------------------------------------
+    # CREATE
+    # --------------------------------------------------------
+
+    def perform_create(self, serializer):
+
+        serializer.save(
+            status=FormInstanceStatus.DRAFT,
+            submitted_by=(
+                self.request.user
+                if self.request.user.is_authenticated
+                else None
+            )
+        )
+
+    # --------------------------------------------------------
+    # UPDATE
+    # --------------------------------------------------------
+
     def update(self, request, *args, **kwargs):
+
         instance = self.get_object()
 
         if instance.status != FormInstanceStatus.DRAFT:
@@ -76,10 +128,18 @@ class FormInstanceViewSet(viewsets.ModelViewSet):
                 {"detail": "Only draft forms can be edited."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        if "sections" in request.data:
+            raise DRFValidationError({
+                "sections": (
+                    "Nested section updates are not currently supported."
+                )
+            })
 
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
+
         instance = self.get_object()
 
         if instance.status != FormInstanceStatus.DRAFT:
@@ -88,169 +148,197 @@ class FormInstanceViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        if "sections" in request.data:
+            raise DRFValidationError({
+                "sections": (
+                    "Nested section updates are not currently supported."
+                )
+            })
+
         return super().partial_update(request, *args, **kwargs)
 
-    # -------------------------
+    # --------------------------------------------------------
     # SUBMIT
-    # -------------------------
-    @action(detail=True, methods=["post"])
+    # --------------------------------------------------------
+
+    @action(
+        detail=True,
+        methods=["post"]
+    )
     def submit(self, request, pk=None):
-        instance = self.get_object()
 
-        if instance.status == FormInstanceStatus.SUBMITTED:
-            return Response(
-                {"detail": "Form already submitted."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if instance.status == FormInstanceStatus.LOCKED:
-            return Response(
-                {"detail": "Form is locked and cannot be submitted."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        answers = instance.answers.select_related("question")
-
-        # Validate all answers
-        for answer in answers:
-            validate_answer(answer.question, answer.value)
-
-        # Atomic state transition
         with transaction.atomic():
-            instance.status = FormInstanceStatus.SUBMITTED
-            instance.save(update_fields=["status"])
 
-        return Response(
-            {
-                "id": instance.id,
-                "status": instance.status,
-                "message": "Form submitted successfully"
-            }
-        )
-
-    # -------------------------
-    # LOCK (optional lifecycle step)
-    # -------------------------
-    @action(detail=True, methods=["post"])
-    def lock(self, request, pk=None):
-        instance = self.get_object()
-
-        if instance.status != FormInstanceStatus.SUBMITTED:
-            return Response(
-                {"detail": "Only submitted forms can be locked."},
-                status=status.HTTP_400_BAD_REQUEST
+            instance = (
+                FormInstance.objects
+                .select_for_update()
+                .get(pk=pk)
             )
 
-        instance.status = FormInstanceStatus.LOCKED
-        instance.save(update_fields=["status"])
+            if instance.status == FormInstanceStatus.SUBMITTED:
+                return Response(
+                    {"detail": "Form already submitted."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-        return Response(
-            {
-                "id": instance.id,
-                "status": instance.status,
-                "message": "Form locked successfully"
-            }
-        )
+            if instance.status == FormInstanceStatus.LOCKED:
+                return Response(
+                    {
+                        "detail": (
+                            "Form is locked and cannot be submitted."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
+            errors = []
+
+            group_instances = (
+                FormGroupInstance.objects
+                .filter(form_instance=instance)
+                .select_related("group")
+                .prefetch_related(
+                    "answers",
+                    "answers__question",
+                    "group__questions",
+                )
+            )
+
+            for group_instance in group_instances:
+
+                answers = list(group_instance.answers.all())
+
+                answered_question_ids = set()
+
+                # Validate supplied answers
+                for answer in answers:
+
+                    answered_question_ids.add(
+                        answer.question_id
+                    )
+
+                    try:
+                        validate_answer(
+                            answer.question,
+                            answer.value
+                        )
+
+                    except DjangoValidationError as exc:
+
+                        errors.append({
+                            "answer": str(answer.id),
+                            "group_instance": str(group_instance.id),
+                            "question": str(answer.question_id),
+                            "error": exc.messages,
+                        })
+
+                # Check for missing required answers
+                required_questions = (
+                    group_instance.group.questions.filter(
+                        required=True
+                    )
+                )
+
+                for question in required_questions:
+
+                    if question.id not in answered_question_ids:
+
+                        errors.append({
+                            "answer": None,
+                            "group_instance": str(group_instance.id),
+                            "question": str(question.id),
+                            "error": ["Required field"],
+                        })
+
+            if errors:
+                return Response(
+                    {
+                        "detail": "Form contains invalid answers.",
+                        "errors": errors,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # All answers valid
+            instance.status = FormInstanceStatus.SUBMITTED
+
+            instance.save(
+                update_fields=["status"]
+            )
+
+        return Response({
+            "id": instance.id,
+            "status": instance.status,
+            "message": "Form submitted successfully",
+        })
+
+    # --------------------------------------------------------
+    # LOCK
+    # --------------------------------------------------------
+
+    @action(
+        detail=True,
+        methods=["post"]
+    )
+    def lock(self, request, pk=None):
+
+        with transaction.atomic():
+
+            instance = (
+                FormInstance.objects
+                .select_for_update()
+                .get(pk=pk)
+            )
+
+            if instance.status != FormInstanceStatus.SUBMITTED:
+                return Response(
+                    {
+                        "detail": (
+                            "Only submitted forms can be locked."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            instance.status = FormInstanceStatus.LOCKED
+
+            instance.save(
+                update_fields=["status"]
+            )
+
+        return Response({
+            "id": instance.id,
+            "status": instance.status,
+            "message": "Form locked successfully",
+        })
+
+
+# ============================================================
+# Form Question ViewSet
+# ============================================================
 
 class FormQuestionViewSet(viewsets.ReadOnlyModelViewSet):
+
     queryset = FormQuestion.objects.all()
+
     serializer_class = FormQuestionSerializer
 
-    @action(detail=True, methods=["get"])
+    @action(
+        detail=True,
+        methods=["get"]
+    )
     def options(self, request, pk=None):
+
         question = self.get_object()
 
-        if question.field_type != "dynamic":
+        if question.field_type != FieldType.DYNAMIC:
             return Response([])
 
-        source = question.schema.get("source")
+        source = (question.schema or {}).get("source")
+
+        if not source:
+            return Response([])
+
         options = get_dynamic_options(source)
 
         return Response(options)
-
-# Simple ViewSet for FormGroupInstance
-class FormGroupInstanceViewSet(viewsets.ModelViewSet):
-    serializer_class = FormGroupInstanceSerializer
-
-    def get_queryset(self):
-        queryset = (
-            FormGroupInstance.objects
-            .select_related(
-                "form_instance",
-                "group",
-                "parent",
-            )
-            .prefetch_related("answers")  # ✅ important
-        )
-
-        form_instance_id = self.request.query_params.get("form_instance")
-
-        if form_instance_id:
-            queryset = queryset.filter(form_instance_id=form_instance_id)
-
-        return queryset
-# Tree Instance View Set
-class FormGroupInstanceTreeViewSet(viewsets.ReadOnlyModelViewSet):
-    serializer_class = FormGroupInstanceTreeSerializer
-
-    def get_queryset(self):
-        queryset = (
-            FormGroupInstance.objects
-            .select_related("group", "parent")
-            .prefetch_related(
-                "answers",                          # root answers
-                "children",                         # level 1
-                "children__answers",                # level 1 answers
-                "children__children",               # level 2
-                "children__children__answers",      # level 2 answers
-            )
-        )
-
-        form_instance_id = self.request.query_params.get("form_instance")
-
-        if form_instance_id:
-            queryset = queryset.filter(form_instance_id=form_instance_id)
-
-        # Only root nodes
-        return queryset.filter(parent__isnull=True)
-
-# Write FormGroupInstance View Set
-class FormGroupInstanceWriteViewSet(viewsets.ModelViewSet):
-    serializer_class = FormGroupInstanceWriteSerializer
-
-    def get_queryset(self):
-        queryset = (
-            FormGroupInstance.objects
-            .select_related(
-                "form_instance",
-                "group",
-                "parent",
-            )
-        )
-
-        form_instance_id = self.request.query_params.get("form_instance")
-
-        if form_instance_id:
-            queryset = queryset.filter(form_instance_id=form_instance_id)
-
-        return queryset
-
-    def perform_create(self, serializer):
-        # ✅ let serializer + model clean() handle validation
-        serializer.save()
-
-    def perform_update(self, serializer):
-        instance = self.get_object()
-
-        incoming_form_instance = self.request.data.get("form_instance")
-
-        if (
-            incoming_form_instance
-            and int(incoming_form_instance) != instance.form_instance_id
-        ):
-            raise ValidationError(
-                "Cannot change form_instance of an existing record"
-            )
-
-        serializer.save()

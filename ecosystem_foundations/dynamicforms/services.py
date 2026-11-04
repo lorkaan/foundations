@@ -129,7 +129,7 @@ def validate_dynamic(question, value, schema):
         raise ValidationError("Missing data source")
 
     options = get_dynamic_options(source)
-    valid_values = [o["value"] for o in options]
+    valid_values = [str(o["value"]) for o in options]
 
     multiple = schema.get("multiple", False)
 
@@ -137,19 +137,44 @@ def validate_dynamic(question, value, schema):
         if not isinstance(value, list):
             raise ValidationError("Must be a list")
 
-        for v in value:
-            if v["value"] not in valid_values:
-                raise ValidationError("Invalid selection")
-    else:
-        if not isinstance(value, dict):
-            raise ValidationError("Must be an object")
+        for item in value:
+            if not isinstance(item, dict) or "value" not in item:
+                raise ValidationError(
+                    "Each selection must contain a value"
+                )
 
-        if value["value"] not in valid_values:
+            if str(item["value"]) not in valid_values:
+                raise ValidationError("Invalid selection")
+
+    else:
+        if not isinstance(value, dict) or "value" not in value:
+            raise ValidationError(
+                "Must be an object containing a value"
+            )
+
+        if str(value["value"]) not in valid_values:
             raise ValidationError("Invalid selection")
 
-"""
-    Conversion from Form Instance and Form Answers into other Models
-"""
-class FormMapper:
+def validate_answer(question, value):
+    schema = question.schema or {}
 
-    pass
+    if question.required and value in [None, "", []]:
+        raise ValidationError("Required field")
+
+    # Optional empty values don't need field-specific validation.
+    if value in [None, "", []]:
+        return True
+
+    validator = VALIDATOR_REGISTRY.get(question.field_type)
+
+    if not validator:
+        raise ValidationError(
+            f"No validator for {question.field_type}"
+        )
+
+    validator(question, value, schema)
+
+    return True
+
+def is_empty(value):
+    return value is None or value == "" or value == []

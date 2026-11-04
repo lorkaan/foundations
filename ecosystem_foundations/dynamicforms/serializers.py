@@ -3,7 +3,7 @@ from rest_framework import serializers
 from django.db import transaction
 from .models import FormGroup, FormGroupInstance, FormSection, FormType, FormQuestion, FormInstance, FormAnswer, FieldType
 from .services import validate_answer, get_dynamic_options
-from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.exceptions import ValidationError
 
 
 class FormQuestionSerializer(serializers.ModelSerializer):
@@ -65,168 +65,338 @@ class FormTypeSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "code", "description", "version", "sections"]
 
 
+# ============================================================
+# Form Answer Serializer
+# ============================================================
+
 class FormAnswerSerializer(serializers.ModelSerializer):
+
+    question = serializers.PrimaryKeyRelatedField(
+        queryset=FormQuestion.objects.all()
+    )
+
+    value = serializers.JSONField()
+
     class Meta:
         model = FormAnswer
-        fields = ["question", "value"]
+        fields = [
+            "id",
+            "question",
+            "value",
+        ]
+        read_only_fields = ["id"]
 
-    def validate(self, data):
-        question = data["question"]
-        value = data["value"]
+    def validate(self, attrs):
+        question = attrs["question"]
+        value = attrs.get("value")
 
-        validate_answer(question, value)
-        return data
+        try:
+            validate_answer(question, value)
+
+        except Exception as exc:
+
+            if isinstance(exc, ValidationError):
+                raise serializers.ValidationError({
+                    "value": exc.messages
+                })
+
+            raise
+
+        return attrs
+    
 
 
-# Single Instance
-class FormGroupInstanceInputSerializer(serializers.Serializer):
-    id = serializers.IntegerField(required=False)
-    group = serializers.IntegerField()
+# ============================================================
+# Form Group Instance Data Serializer
+# ============================================================
 
-    answers = FormAnswerSerializer(many=True, required=False)
-    children = serializers.ListField(required=False)
+class FormGroupInstanceDataSerializer(serializers.Serializer):
 
+    id = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+        default=None
+    )
+
+    group = serializers.PrimaryKeyRelatedField(
+        queryset=FormGroup.objects.all()
+    )
+
+    answers = FormAnswerSerializer(
+        many=True,
+        required=False,
+        default=list
+    )
+
+    def validate(self, attrs):
+        group = attrs["group"]
+
+        for answer in attrs.get("answers", []):
+            question = answer["question"]
+
+            if question.form_group_id != group.pk:
+                raise serializers.ValidationError({
+                    "answers": (
+                        f"Question {question.pk} does not belong "
+                        f"to FormGroup {group.pk}."
+                    )
+                })
+
+        return attrs
+
+
+# ============================================================
+# Form Group Instance Tree Input Serializer
+# ============================================================
+
+class FormGroupInstanceTreeInputSerializer(serializers.Serializer):
+
+    data = FormGroupInstanceDataSerializer()
+
+    children = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        default=list
+    )
+
+    def validate(self, attrs):
+
+        validated_children = []
+
+        for child in attrs.get("children", []):
+
+            serializer = FormGroupInstanceTreeInputSerializer(
+                data=child,
+                context=self.context
+            )
+
+            serializer.is_valid(raise_exception=True)
+
+            validated_children.append(serializer.validated_data)
+
+        attrs["children"] = validated_children
+
+        return attrs
+
+
+# ============================================================
+# Form Section Tree Collection Serializer
+# ============================================================
+
+class FormSectionTreeSerializer(serializers.Serializer):
+
+    section = serializers.PrimaryKeyRelatedField(
+        queryset=FormSection.objects.all()
+    )
+
+    trees = FormGroupInstanceTreeInputSerializer(
+        many=True
+    )
+
+
+# ============================================================
+# Form Section Mapping Serializer
+# ============================================================
+
+class FormSectionMappingSerializer(serializers.Serializer):
+
+    """
+    Validates a mapping of:
+
+        {
+            section_id: [
+                TreeNode,
+                TreeNode,
+                ...
+            ]
+        }
+
+    Each section contains a list of independent root trees.
+    """
+
+    def to_internal_value(self, data):
+
+        if not isinstance(data, dict):
+            raise serializers.ValidationError(
+                "Expected a dictionary of section IDs and trees."
+            )
+
+        validated_data = {}
+
+        for section_id, trees in data.items():
+
+            try:
+                section = FormSection.objects.get(pk=section_id)
+
+            except (
+                FormSection.DoesNotExist,
+                ValueError,
+                TypeError
+            ):
+                raise serializers.ValidationError({
+                    section_id: "Invalid FormSection ID."
+                })
+
+            if not isinstance(trees, list):
+                raise serializers.ValidationError({
+                    section_id: "Expected a list of trees."
+                })
+
+            tree_serializer = FormGroupInstanceTreeInputSerializer(
+                data=trees,
+                many=True,
+                context=self.context
+            )
+
+            tree_serializer.is_valid(raise_exception=True)
+
+            validated_data[section.pk] = {
+                "section": section,
+                "trees": tree_serializer.validated_data
+            }
+
+        return validated_data
+
+
+# ============================================================
+# Form Instance Serializer
+# ============================================================
 
 class FormInstanceSerializer(serializers.ModelSerializer):
-    group_instances = FormGroupInstanceInputSerializer(many=True)
+
+    sections = FormSectionMappingSerializer(
+        required=False,
+        write_only=True
+    )
 
     class Meta:
         model = FormInstance
-        fields = ["id", "form_type", "group_instances", "status", "created_at"]
-        read_only_fields = ["created_at", "status"]
 
-    @transaction.atomic
-    def create(self, validated_data):
-        group_data = validated_data.pop("group_instances")
-
-        instance = FormInstance.objects.create(**validated_data)
-
-        # --- Step 1: flatten tree ---
-        flat_nodes = []
-        self._flatten(group_data, flat_nodes)
-
-        # --- Step 2: create all group instances ---
-        for node in flat_nodes:
-            obj = FormGroupInstance.objects.create(
-                form_instance=instance,
-                group_id=node["group"],
-                parent=None,
-            )
-            node["_instance"] = obj
-
-        # --- Step 3: assign parents ---
-        for node in flat_nodes:
-            parent = node.get("parent_ref")
-            if parent:
-                node["_instance"].parent = parent["_instance"]
-                node["_instance"].save(update_fields=["parent"])
-
-        # --- Step 4: create answers ---
-        answers_to_create = []
-
-        for node in flat_nodes:
-            for ans in node.get("answers", []):
-                answers_to_create.append(
-                    FormAnswer(
-                        group_instance=node["_instance"],
-                        question_id=ans["question"],
-                        value=ans["value"],
-                    )
-                )
-
-        FormAnswer.objects.bulk_create(answers_to_create)
-
-        return instance
-
-    def _flatten(self, nodes, flat, parent=None):
-        for node in nodes:
-            current = {
-                "group": node["group"],
-                "answers": node.get("answers", []),
-                "parent_ref": parent,
-            }
-
-            flat.append(current)
-
-            children = node.get("children", [])
-            self._flatten(children, flat, current)
-
-class FormGroupInstanceSerializer(serializers.ModelSerializer):
-    answers = FormAnswerSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = FormGroupInstance
         fields = [
             "id",
-            "form_instance",
-            "group",
-            "parent",
-            "answers",
+            "form_type",
+            "submitted_by",
+            "status",
+            "sections",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at"]
+
+        read_only_fields = [
+            "id",
+            "submitted_by",
+            "status",
+            "created_at",
+            "updated_at",
+        ]
 
     def validate(self, attrs):
-        """
-        Run model-level validation (clean) to enforce tree + schema rules.
-        """
-        instance = self.instance or FormGroupInstance()
 
-        # Apply incoming attrs to instance for validation
-        for attr, value in attrs.items():
-            setattr(instance, attr, value)
+        form_type = attrs.get(
+            "form_type",
+            getattr(self.instance, "form_type", None)
+        )
 
-        try:
-            instance.clean()
-        except DjangoValidationError as e:
+        if form_type is None:
+            raise serializers.ValidationError({
+                "form_type": "This field is required."
+            })
+
+        sections = attrs.get("sections", {})
+
+        for section_id, section_data in sections.items():
+
+            section = section_data["section"]
+
+            if section.form_type_id != form_type.pk:
+                raise serializers.ValidationError({
+                    "sections": (
+                        f"Section {section_id} does not belong "
+                        "to this FormType."
+                    )
+                })
+
+            for tree in section_data["trees"]:
+
+                self._validate_tree_section(
+                    tree,
+                    section.pk
+                )
+
+        return attrs
+
+    def _validate_tree_section(self, node_data, section_id):
+
+        group = node_data["data"]["group"]
+
+        if group.form_section_id != section_id:
             raise serializers.ValidationError(
-                e.message_dict if hasattr(e, "message_dict") else e.messages
+                f"Group {group.pk} does not belong to "
+                f"FormSection {section_id}."
             )
 
-        return attrs
+        for child in node_data.get("children", []):
 
-# Recursive Instance
-class FormGroupInstanceTreeSerializer(serializers.ModelSerializer):
-    children = serializers.SerializerMethodField()
-    answers = FormAnswerSerializer(many=True, read_only=True)
+            self._validate_tree_section(
+                child,
+                section_id
+            )
 
-    class Meta:
-        model = FormGroupInstance
-        fields = [
-            "id",
-            "group",
-            "parent",
-            "answers",
-            "children",
-        ]
+    # --------------------------------------------------------
+    # CREATE
+    # --------------------------------------------------------
 
-    def get_children(self, obj):
-        return FormGroupInstanceTreeSerializer(
-            obj.children.all().order_by("id"),
-            many=True
-        ).data
-    
-# Write Serializer
-class FormGroupInstanceWriteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FormGroupInstance
-        fields = [
-            "id",
-            "form_instance",
-            "group",
-            "parent",
-        ]
+    @transaction.atomic
+    def create(self, validated_data):
 
-    def validate(self, attrs):
-        instance = self.instance or FormGroupInstance()
+        sections_data = validated_data.pop(
+            "sections",
+            {}
+        )
 
-        for attr, value in attrs.items():
-            setattr(instance, attr, value)
+        form_instance = FormInstance.objects.create(
+            **validated_data
+        )
 
-        try:
-            instance.clean()
-        except DjangoValidationError as e:
-            raise serializers.ValidationError(e.messages)
+        for section_data in sections_data.values():
 
-        return attrs
+            for tree_data in section_data["trees"]:
+
+                self._create_group_tree(
+                    form_instance=form_instance,
+                    node_data=tree_data
+                )
+
+        return form_instance
+
+    def _create_group_tree(
+        self,
+        form_instance,
+        node_data,
+        parent=None
+    ):
+
+        data = node_data["data"]
+
+        group_instance = FormGroupInstance.objects.create(
+            form_instance=form_instance,
+            group=data["group"],
+            parent=parent
+        )
+
+        for answer_data in data.get("answers", []):
+
+            FormAnswer.objects.create(
+                group_instance=group_instance,
+                **answer_data
+            )
+
+        for child_data in node_data.get("children", []):
+
+            self._create_group_tree(
+                form_instance=form_instance,
+                node_data=child_data,
+                parent=group_instance
+            )
+
+        return group_instance
