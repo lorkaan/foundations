@@ -155,7 +155,7 @@ class FormQuestion(ConditionalMixin, TimeAuditableMixin, BaseUuidPrimaryKeyModel
         return f"{self.label} ({self.field_type})"
 
 class FormInstance(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
-    form_type = models.ForeignKey(FormType, on_delete=models.CASCADE)
+    form_type = models.ForeignKey(FormType, on_delete=models.CASCADE, related_name="instances")
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,   # Does this integrate with the custom auth model?
         null=True,
@@ -176,13 +176,13 @@ class FormGroupInstance(TimeAuditableMixin, BaseUuidPrimaryKeyModel):
     form_instance = models.ForeignKey(
         FormInstance,
         on_delete=models.CASCADE,
-        related_name="group_instances"
+        related_name="groups"
     )
 
     group = models.ForeignKey(
         FormGroup,
         on_delete=models.CASCADE,
-        related_name="instances"
+        related_name="group_instances"
     )
 
     parent = models.ForeignKey(

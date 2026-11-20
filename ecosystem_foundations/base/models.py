@@ -576,3 +576,9 @@ class Note(RequiredGenericUuidTargetMixin, ActiveMixin, CreatedByMixin, TimeAudi
 
     def __str__(self):
         return f"Note({self.id})"
+
+class Configable(TimeAuditableMixin, BaseItemType):
+    config = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        abstract = True

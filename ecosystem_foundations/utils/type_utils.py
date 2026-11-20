@@ -1,4 +1,7 @@
 
+import uuid
+
+
 def isString(val, minLength=1):
     if type(val) == str and len(val) >= minLength:
         return True
@@ -37,3 +40,27 @@ def isList(val, minLen=1, allValidFunc=None, anyValidFunc=None):
         return allValid and anyValid
     else:
         return False
+
+def isUUID(pk):
+    """ UUID checking that is Required """
+    if isinstance(pk, uuid.UUID):
+        return True
+    else:
+        try:
+            uuid.UUID(str(pk))
+            return True
+        except Exception:
+            return False
+
+def findBadIndexes(cls, answer_list=[], checkFunc=None):
+    if callable(checkFunc):
+        str_ret = "--- Bad Indexes for FormAnswerData ---\n"
+        if(isList(answer_list)):
+            for i in range(len(answer_list)):
+                if isinstance(answer_list[i], FormAnswerData):
+                    continue
+                else:
+                    str_ret += f"\t{i}: {type(answer_list[i])} --> {answer_list[i]}\n"
+        return str_ret
+    else:
+        return f"Can not find bad indexes if checkFunc is not callable: {type(checkFunc)}"
